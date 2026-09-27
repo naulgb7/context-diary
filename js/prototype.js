@@ -167,6 +167,34 @@ $('mic').addEventListener('click', () => {
   }
 });
 
+// ---- 記入ボタン: 音声入力を止めてドライブに書き、入力欄を空にする ----
+$('save').addEventListener('click', async () => {
+  if (listening) {
+    // 止めた直後に最後の文字が届くので、終了を待ってから書く
+    await new Promise((resolve) => {
+      rec.addEventListener('end', resolve, { once: true });
+      rec.stop();
+    });
+  }
+  if (!$('text').value.trim()) {
+    log('入力欄が空です', 'ng');
+    return;
+  }
+  if (!accessToken) {
+    log('先に「Googleにログイン」を押してください', 'ng');
+    return;
+  }
+  $('save').disabled = true;
+  try {
+    await writeTestFile();
+    $('text').value = '';
+  } catch (e) {
+    log(`書き込み失敗: ${e.message}`, 'ng');
+  } finally {
+    $('save').disabled = false;
+  }
+});
+
 // ---- 記録のコピー ----
 $('copy').addEventListener('click', async () => {
   const text = `${$('env').innerText}\n\n${logEl.innerText}`;
