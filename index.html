@@ -26,6 +26,9 @@
   button:disabled { opacity:.4; }
   textarea { width:100%; box-sizing:border-box; min-height:120px; font-size:1rem; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  .ops { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-top:8px; }
+  #save { min-width:96px; }
+  #micState { font-size:.85rem; }
   .mic { width:56px; height:56px; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center; }
   .mic.on { background:var(--ng); border-color:var(--ng); }
   .mic svg { width:26px; height:26px; fill:#fff; }
@@ -53,12 +56,15 @@
 <section>
   <h2>3) 音声入力</h2>
   <textarea id="text" placeholder="マイクを押して話す"></textarea>
-  <div class="row">
-    <button id="mic" class="mic" aria-label="音声入力">
-      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
-    </button>
-    <span id="micState">停止中</span>
-    <button id="save" style="margin-left:auto">記入</button>
+  <div class="ops">
+    <div class="row" style="margin-top:0">
+      <button id="mic" class="mic" aria-label="音声入力">
+        <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+      </button>
+      <span id="micState">停止中</span>
+    </div>
+    <button id="save">記入</button>
+    <div></div>
   </div>
 </section>
 

@@ -124,7 +124,7 @@ let baseText = '';
 function setMic(on) {
   listening = on;
   $('mic').classList.toggle('on', on);
-  $('micState').textContent = on ? '聞き取り中(もう一度押すと止まる)' : '停止中';
+  $('micState').textContent = on ? '聞き取り中' : '停止中';
 }
 
 $('mic').addEventListener('click', () => {
