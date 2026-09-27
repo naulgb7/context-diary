@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>コンテキスト日記(試作)</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="日記">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="theme-color" content="#2f6f8f">
+<style>
+  :root { --bg:#fbfaf7; --fg:#222; --sub:#666; --line:#ccc; --accent:#2f6f8f; --panel:#eef4f7; --ng:#b3261e; --ok:#1e7a3a; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1c1d1f; --fg:#e6e6e6; --sub:#a0a0a0; --line:#444; --accent:#7fb8d4; --panel:#26323a; --ng:#f2b8b5; --ok:#8fd19e; }
+  }
+  body { background:var(--bg); color:var(--fg); font-family:-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif; margin:0; padding:calc(16px + env(safe-area-inset-top)) 16px 32px; line-height:1.6; }
+  main { max-width:640px; margin:0 auto; }
+  h1 { font-size:1.2rem; margin:0 0 12px; }
+  section { background:var(--panel); border-radius:10px; padding:12px 14px; margin:12px 0; }
+  h2 { font-size:1rem; margin:0 0 8px; }
+  button { font-size:1rem; padding:10px 16px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:#fff; }
+  button.sub { background:transparent; color:var(--accent); }
+  button:disabled { opacity:.4; }
+  textarea { width:100%; box-sizing:border-box; min-height:120px; font-size:1rem; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  .mic { width:56px; height:56px; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center; }
+  .mic.on { background:var(--ng); border-color:var(--ng); }
+  .mic svg { width:26px; height:26px; fill:#fff; }
+  #log { font-family:ui-monospace,Consolas,monospace; font-size:.8rem; white-space:pre-wrap; word-break:break-all; margin:0; }
+  .ok { color:var(--ok); } .ng { color:var(--ng); }
+</style>
+</head>
+<body>
+<main>
+<h1>コンテキスト日記 試作</h1>
+
+<section>
+  <h2>1) 環境</h2>
+  <div id="env"></div>
+</section>
+
+<section>
+  <h2>2) Googleログインとドライブ書き込み</h2>
+  <div class="row">
+    <button id="login">Googleにログイン</button>
+    <button id="write" disabled>ドライブに試しに書く</button>
+  </div>
+</section>
+
+<section>
+  <h2>3) 音声入力</h2>
+  <textarea id="text" placeholder="マイクを押して話す"></textarea>
+  <div class="row">
+    <button id="mic" class="mic" aria-label="音声入力">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+    <span id="micState">停止中</span>
+  </div>
+</section>
+
+<section>
+  <h2>結果の記録</h2>
+  <pre id="log"></pre>
+  <div class="row"><button class="sub" id="copy">記録をコピー</button></div>
+</section>
+</main>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script type="module" src="js/prototype.js"></script>
+</body>
+</html>
