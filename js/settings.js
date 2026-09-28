@@ -4,7 +4,7 @@ import { kvGet, kvSet } from './store.js';
 export const MAX_SUMMARY_QUESTIONS = 10;
 
 export const DEFAULT_SETTINGS = {
-  summaryQuestions: ['今日いちばん良かったことは?', '今日うまくいかなかったことは?', '明日やりたいことは?'],
+  summaryQuestions: ['今日いちばん印象に残っていることは?'],
   summaryStartTime: '21:00',
   randomItems: [
     { text: '今の気分は?', enabled: true },
