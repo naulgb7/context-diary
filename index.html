@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>コンテキスト日記(試作)</title>
+<title>コンテキスト日記</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -11,71 +11,95 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="theme-color" content="#2f6f8f">
-<style>
-  :root { --bg:#fbfaf7; --fg:#222; --sub:#666; --line:#ccc; --accent:#2f6f8f; --panel:#eef4f7; --ng:#b3261e; --ok:#1e7a3a; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#1c1d1f; --fg:#e6e6e6; --sub:#a0a0a0; --line:#444; --accent:#7fb8d4; --panel:#26323a; --ng:#f2b8b5; --ok:#8fd19e; }
-  }
-  body { background:var(--bg); color:var(--fg); font-family:-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif; margin:0; padding:calc(16px + env(safe-area-inset-top)) 16px 32px; line-height:1.6; }
-  main { max-width:640px; margin:0 auto; }
-  h1 { font-size:1.2rem; margin:0 0 12px; }
-  section { background:var(--panel); border-radius:10px; padding:12px 14px; margin:12px 0; }
-  h2 { font-size:1rem; margin:0 0 8px; }
-  button { font-size:1rem; padding:10px 16px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:#fff; }
-  button.sub { background:transparent; color:var(--accent); }
-  button:disabled { opacity:.4; }
-  textarea { width:100%; box-sizing:border-box; min-height:120px; font-size:1rem; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); }
-  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
-  .ops { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; margin-top:8px; }
-  #save { min-width:96px; }
-  #micState { font-size:.85rem; }
-  .mic { width:56px; height:56px; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center; }
-  .mic.on { background:var(--ng); border-color:var(--ng); }
-  .mic svg { width:26px; height:26px; fill:#fff; }
-  #log { font-family:ui-monospace,Consolas,monospace; font-size:.8rem; white-space:pre-wrap; word-break:break-all; margin:0; }
-  .ok { color:var(--ok); } .ng { color:var(--ng); }
-</style>
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
+<header class="top">
+  <span class="title">コンテキスト日記</span>
+  <button id="syncBtn" class="sync" type="button">…</button>
+</header>
+
 <main>
-<h1>コンテキスト日記 試作</h1>
-
-<section>
-  <h2>1) 環境</h2>
-  <div id="env"></div>
-</section>
-
-<section>
-  <h2>2) Googleログインとドライブ書き込み</h2>
-  <div class="row">
-    <button id="login">Googleにログイン</button>
-    <button id="write" disabled>ドライブに試しに書く</button>
-  </div>
-</section>
-
-<section>
-  <h2>3) 音声入力</h2>
-  <textarea id="text" placeholder="マイクを押して話す"></textarea>
-  <div class="ops">
-    <div class="row" style="margin-top:0">
-      <button id="mic" class="mic" aria-label="音声入力">
-        <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
-      </button>
-      <span id="micState">停止中</span>
+  <!-- 記入 -->
+  <section id="view-write" class="view">
+    <div id="summaryBar" hidden>
+      <button id="summaryOpen" class="sub wide" type="button">1日のまとめを書く</button>
     </div>
-    <button id="save">記入</button>
-    <div></div>
-  </div>
-</section>
 
-<section>
-  <h2>結果の記録</h2>
-  <pre id="log"></pre>
-  <div class="row"><button class="sub" id="copy">記録をコピー</button></div>
-</section>
+    <div id="qcard" class="qcard">
+      <div class="qlabel">問い</div>
+      <div id="qtext" class="qtext"></div>
+      <button id="qdrop" class="qdrop" type="button" aria-label="問いを外して自由に書く">×</button>
+    </div>
+    <div id="qfree" class="qfree" hidden>
+      問いなし(自由記入)
+      <button id="qrestore" class="link" type="button">問いを出す</button>
+    </div>
+
+    <textarea id="writeText" placeholder="マイクを押して話すか、ここに書く"></textarea>
+    <div class="ops">
+      <div class="micwrap">
+        <button class="mic" type="button" data-mic-for="writeText" aria-label="音声入力"></button>
+        <span class="micstate" data-state-for="writeText">停止中</span>
+      </div>
+      <button id="writeSave" type="button">記入</button>
+      <div class="opsright"><button id="writeCancel" class="link" type="button" hidden>やめる</button></div>
+    </div>
+
+    <h2 class="sec">今日の記入</h2>
+    <div id="todayList" class="entries"></div>
+  </section>
+
+  <!-- 1日のまとめ -->
+  <section id="view-summary" class="view" hidden>
+    <div class="sumhead">
+      <button id="sumClose" class="link" type="button">‹ 記入に戻る</button>
+      <span id="sumPos" class="sumpos"></span>
+    </div>
+    <div class="qcard"><div class="qlabel">1日のまとめ</div><div id="sumQ" class="qtext"></div></div>
+    <textarea id="sumText" placeholder="マイクを押して話すか、ここに書く"></textarea>
+    <div class="ops">
+      <div class="micwrap">
+        <button class="mic" type="button" data-mic-for="sumText" aria-label="音声入力"></button>
+        <span class="micstate" data-state-for="sumText">停止中</span>
+      </div>
+      <div></div><div></div>
+    </div>
+    <div class="sumnav">
+      <button id="sumPrev" class="sub" type="button">戻る</button>
+      <button id="sumNext" type="button">次へ</button>
+    </div>
+    <p class="hint">答えたくない問いは、空欄のまま「次へ」で飛ばせます。後から戻って答えられます。</p>
+  </section>
+
+  <!-- 閲覧 -->
+  <section id="view-browse" class="view" hidden>
+    <input id="searchInput" type="search" placeholder="キーワードで検索" autocomplete="off">
+    <div id="searchResults" class="results" hidden></div>
+    <div id="calendarWrap">
+      <div class="calhead">
+        <button id="calPrev" class="link" type="button" aria-label="前の月">‹</button>
+        <span id="calTitle"></span>
+        <button id="calNext" class="link" type="button" aria-label="次の月">›</button>
+      </div>
+      <div id="calGrid" class="cal"></div>
+    </div>
+    <div id="dayView" class="dayview"></div>
+  </section>
+
+  <!-- 設定 -->
+  <section id="view-settings" class="view" hidden></section>
 </main>
 
+<nav class="tabs">
+  <button id="tabWrite" data-tab="write" type="button"><span class="ticon" id="tabWriteIcon"></span><span>記入</span></button>
+  <button data-tab="browse" type="button"><span class="ticon" data-icon="calendar"></span><span>閲覧</span></button>
+  <button data-tab="settings" type="button"><span class="ticon" data-icon="gear"></span><span>設定</span></button>
+</nav>
+
+<div id="toast" class="toast" hidden></div>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script type="module" src="js/prototype.js"></script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
