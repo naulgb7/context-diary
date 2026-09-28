@@ -15,10 +15,7 @@
 </head>
 <body>
 <header class="top">
-  <div class="topleft">
-    <button id="backBtn" class="link back" type="button" hidden>‹ 戻る</button>
-    <span class="title">コンテキスト日記</span>
-  </div>
+  <span class="title">コンテキスト日記</span>
   <button id="syncBtn" class="sync" type="button">…</button>
 </header>
 
@@ -98,6 +95,7 @@
   <button id="tabWrite" data-tab="write" type="button"><span class="ticon" id="tabWriteIcon"></span><span>記入</span></button>
   <button data-tab="browse" type="button"><span class="ticon" data-icon="calendar"></span><span>閲覧</span></button>
   <button data-tab="settings" type="button"><span class="ticon" data-icon="gear"></span><span>設定</span></button>
+  <button id="backBtn" type="button" disabled><span class="ticon" data-icon="back"></span><span>戻る</span></button>
 </nav>
 
 <div id="toast" class="toast" hidden></div>
