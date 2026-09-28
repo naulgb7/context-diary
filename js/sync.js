@@ -21,12 +21,11 @@ const dataListeners = new Set();
 export const onDataChanged = (fn) => dataListeners.add(fn);
 const dataChanged = () => dataListeners.forEach((fn) => fn());
 
+// 画面に出す未送信の件数は、利用者が書いたもの(記入とまとめ)だけを数える。問いログと設定は裏で一緒に送る
 export async function pendingCount() {
   const entries = (await store.allEntries()).filter((e) => e.dirty).length;
   const sums = (await store.allSummaries()).filter((s) => s.dirty).length;
-  const logs = ((await store.kvGet('qlogPending')) || []).length;
-  const st = (await store.kvGet('settingsDirty')) ? 1 : 0;
-  return entries + sums + logs + st;
+  return entries + sums;
 }
 
 export async function refreshPending() {
