@@ -5,14 +5,14 @@ import * as voice from '../voice.js';
 import { settings } from '../settings.js';
 import { logQuestion, questionLogRecord } from '../questions.js';
 import { requestSync, refreshPending } from '../sync.js';
-import { toast, show } from '../ui.js';
+import { toast, show, onBack } from '../ui.js';
 
 let sm = null; // 書いている まとめ
 
 export function initSummary() {
   $('#sumPrev').addEventListener('click', () => move(-1));
   $('#sumNext').addEventListener('click', () => move(1));
-  $('#sumClose').addEventListener('click', close);
+  onBack('summary', leave); // 共通の戻るボタンで閉じるときも、書きかけを保存する
   const saveDraft = debounce(() => persist(), 600);
   $('#sumText').addEventListener('input', () => {
     if (!sm) return;
@@ -104,11 +104,10 @@ async function finish() {
   show('write');
 }
 
-async function close() {
+async function leave() {
   await voice.stop();
   if (sm) await persist();
   sm = null;
   await refreshPending();
   requestSync();
-  show('write');
 }

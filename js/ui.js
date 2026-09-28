@@ -18,15 +18,34 @@ export function toast(msg, ms = 3500) {
 }
 
 let currentView = 'write';
+const history = []; // 戻るボタン用: これまでに開いた画面
+const backHandlers = {}; // 画面ごとに、戻る前に済ませる処理(まとめの保存など)
 const showListeners = new Set();
 export const onShow = (fn) => showListeners.add(fn);
 export const viewName = () => currentView;
+export const onBack = (name, fn) => { backHandlers[name] = fn; };
 
-export function show(name) {
+export function show(name, { fromBack = false } = {}) {
+  if (!fromBack && name !== currentView) {
+    backHandlers[currentView]?.(); // タブで他の画面へ移るときも、書きかけを保存する
+    history.push(currentView);
+    if (history.length > 10) history.shift();
+  }
+  if (name === 'write') history.length = 0; // 記入画面が起点。そこからは戻る先がない
   currentView = name;
   for (const v of $$('.view')) v.hidden = v.id !== `view-${name}`;
   const tab = name === 'summary' ? 'write' : name;
   for (const b of $$('.tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
+  $('#backBtn').hidden = name === 'write';
   window.scrollTo(0, 0);
   showListeners.forEach((fn) => fn(name));
+}
+
+// 共通の戻るボタン: 前の画面へ(音声入力は始めない)
+export async function back() {
+  const handler = backHandlers[currentView];
+  if (handler) await handler();
+  let prev = history.pop() || 'write';
+  if (prev === currentView) prev = 'write';
+  show(prev, { fromBack: true });
 }

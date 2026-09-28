@@ -30,7 +30,9 @@ textarea { width: 100%; min-height: 140px; resize: vertical; margin-top: 10px; }
 /* 上の帯 */
 .top { position: fixed; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
   padding: calc(8px + env(safe-area-inset-top)) 16px 8px; background: var(--bg); border-bottom: 1px solid var(--line); }
-.title { font-weight: 700; }
+.topleft { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.title { font-weight: 700; white-space: nowrap; }
+.back { padding: 4px 8px 4px 0; font-size: 1rem; white-space: nowrap; }
 .sync { font-size: .8rem; padding: 4px 10px; background: transparent; color: var(--sub); border-color: var(--line); }
 .sync.warn { color: var(--ng); border-color: var(--ng); }
 .sync.ok { color: var(--ok); }
@@ -74,6 +76,7 @@ textarea { width: 100%; min-height: 140px; resize: vertical; margin-top: 10px; }
 
 /* まとめ */
 .sumhead { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.sumtitle { font-weight: 700; }
 .sumpos { font-weight: 700; color: var(--accent); }
 .sumnav { display: flex; justify-content: space-between; margin-top: 18px; }
 .sumnav button { min-width: 110px; }

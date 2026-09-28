@@ -15,7 +15,10 @@
 </head>
 <body>
 <header class="top">
-  <span class="title">コンテキスト日記</span>
+  <div class="topleft">
+    <button id="backBtn" class="link back" type="button" hidden>‹ 戻る</button>
+    <span class="title">コンテキスト日記</span>
+  </div>
   <button id="syncBtn" class="sync" type="button">…</button>
 </header>
 
@@ -53,7 +56,7 @@
   <!-- 1日のまとめ -->
   <section id="view-summary" class="view" hidden>
     <div class="sumhead">
-      <button id="sumClose" class="link" type="button">‹ 記入に戻る</button>
+      <span class="sumtitle">1日のまとめ</span>
       <span id="sumPos" class="sumpos"></span>
     </div>
     <div class="qcard"><div class="qlabel">1日のまとめ</div><div id="sumQ" class="qtext"></div></div>

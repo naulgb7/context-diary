@@ -4,7 +4,7 @@ import { loadSettings } from './settings.js';
 import { isSignedIn, signIn, onAuthChange } from './auth.js';
 import { requestSync, onSyncState, refreshPending } from './sync.js';
 import * as voice from './voice.js';
-import { ICONS, toast, show, viewName } from './ui.js';
+import { ICONS, toast, show, back, viewName } from './ui.js';
 import { initWrite, refresh as refreshWrite } from './views/write.js';
 import { initSummary } from './views/summary.js';
 import { initBrowse } from './views/browse.js';
@@ -47,6 +47,7 @@ function setupTabs() {
     show('write');
     voice.start($('#writeText'));
   });
+  $('#backBtn').addEventListener('click', () => back());
   for (const b of $$('.tabs button[data-tab]:not(#tabWrite)')) {
     b.addEventListener('click', async () => {
       await voice.stop();
