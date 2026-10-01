@@ -78,7 +78,14 @@ function setupSyncButton() {
   onAuthChange(() => requestSync());
 }
 
+// iPhoneはSafariとホーム画面のアプリで保存場所が別。Safariで開いたときは知らせる
+function checkStandalone() {
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  $('#browserNotice').hidden = standalone || !/iPhone|iPad|iPod/.test(navigator.userAgent);
+}
+
 async function main() {
+  checkStandalone();
   await loadSettings();
   setupIcons();
   setupVoice();
