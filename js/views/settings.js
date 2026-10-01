@@ -6,6 +6,7 @@ import { requestSync, onSyncState } from '../sync.js';
 import { generateQuestion, resetModel } from '../gemini.js';
 import { nextQuestion } from '../questions.js';
 import { toast, onShow } from '../ui.js';
+import * as push from '../push.js';
 
 // 画面で編集中の一覧(空欄の行も残しておき、保存するときに空欄を除く)
 let summaryQs = [];
@@ -25,6 +26,8 @@ function render() {
   randomItems = s.randomItems.map((i) => ({ ...i }));
   $('#view-settings').innerHTML = `
     <div class="set" id="setAccount"></div>
+
+    <div class="set" id="setPush"></div>
 
     <div class="set">
       <h2>1日のまとめ</h2>
@@ -64,6 +67,7 @@ function render() {
     <p class="note" style="margin:18px 0 0">試作(動作確認用)の画面: <a href="prototype.html">prototype.html</a></p>
   `;
   renderAccount();
+  renderPush();
   renderSumList();
   renderRndList();
   $('#gemModel').textContent = getGeminiModel() ? `使うモデル: ${getGeminiModel().replace('models/', '')}` : '';
@@ -126,6 +130,49 @@ function renderAccount() {
   });
   $('#accOut')?.addEventListener('click', () => { signOut(); toast('ログアウトしました'); });
   $('#accSync')?.addEventListener('click', () => requestSync());
+}
+
+async function renderPush() {
+  const box = $('#setPush');
+  if (!box) return;
+  const head = '<h2>まとめの通知</h2><p class="note">21時と22時に、1日のまとめが付いていなければ通知します(判定と送信はPCが行うので、PCが起動している必要があります)。</p>';
+  if (!push.supported) {
+    box.innerHTML = head + `<p>${/iPhone|iPad|iPod/.test(navigator.userAgent) && !push.standalone() ? 'ホーム画面の「日記」アイコンから開いたときに設定できます。' : 'この端末・ブラウザは通知に対応していません。'}</p>`;
+    return;
+  }
+  const sub = await push.currentSubscription();
+  const on = !!sub && Notification.permission === 'granted';
+  box.innerHTML = head + `<p>この端末: ${on ? '通知を受け取る' : '通知を受け取らない'}</p>
+    <div class="row">${on ? '<button type="button" class="sub" id="pushOff">通知を止める</button>' : '<button type="button" id="pushOn">この端末で通知を受け取る</button>'}</div>`;
+  $('#pushOn')?.addEventListener('click', async () => {
+    // 通知の許可画面とGoogleのログイン画面は、どちらも押した直後でないと開けないので、ログインは先に済ませてもらう
+    if (!isSignedIn()) {
+      toast('先に上の「Googleに接続」を押してから、もう一度押してください', 6000);
+      return;
+    }
+    const btn = $('#pushOn');
+    btn.disabled = true;
+    try {
+      await push.enable();
+      toast('通知を受け取る設定にしました');
+    } catch (e) {
+      toast(e.message, 7000);
+    }
+    renderPush();
+  });
+  $('#pushOff')?.addEventListener('click', async () => {
+    if (!isSignedIn()) {
+      toast('先に上の「Googleに接続」を押してから、もう一度押してください', 6000);
+      return;
+    }
+    try {
+      await push.disable();
+      toast('通知を止めました');
+    } catch (e) {
+      toast(e.message, 7000);
+    }
+    renderPush();
+  });
 }
 
 function saveSummaryQs() {

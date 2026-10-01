@@ -1,10 +1,10 @@
 // オフラインでも開けるようにアプリ本体を端末に保存する。
 // 電波があるときは常に最新を取りに行き(3秒で諦めて保存版を使う)、更新がすぐ反映されるようにする
-const CACHE = 'context-diary-v1';
+const CACHE = 'context-diary-v2';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'config.js', 'css/app.css',
   'js/app.js', 'js/util.js', 'js/store.js', 'js/settings.js', 'js/auth.js', 'js/drive.js', 'js/markdown.js',
-  'js/sync.js', 'js/questions.js', 'js/gemini.js', 'js/voice.js', 'js/ui.js',
+  'js/sync.js', 'js/questions.js', 'js/gemini.js', 'js/voice.js', 'js/ui.js', 'js/push.js',
   'js/views/write.js', 'js/views/summary.js', 'js/views/browse.js', 'js/views/settings.js',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
@@ -26,6 +26,30 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return; // Google等の通信には関わらない
   e.respondWith(networkFirst(req));
+});
+
+// まとめの通知(PCの send-push.js から届く)
+self.addEventListener('push', (e) => {
+  let data = { title: 'コンテキスト日記', body: '' };
+  try { data = { ...data, ...e.data.json() }; } catch { if (e.data) data.body = e.data.text(); }
+  e.waitUntil(self.registration.showNotification(data.title, {
+    body: data.body,
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    tag: 'summary-reminder',
+    renotify: true,
+  }));
+});
+
+// 通知を押したら、開いている日記アプリを前に出す。なければ開く(ホーム画面のアプリとして開く)
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const app = list.find((c) => c.url.startsWith(self.registration.scope));
+    if (app) return app.focus();
+    return self.clients.openWindow(self.registration.scope);
+  })());
 });
 
 async function networkFirst(req) {
