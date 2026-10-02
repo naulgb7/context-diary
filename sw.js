@@ -1,6 +1,6 @@
 // オフラインでも開けるようにアプリ本体を端末に保存する。
 // 電波があるときは常に最新を取りに行き(3秒で諦めて保存版を使う)、更新がすぐ反映されるようにする
-const CACHE = 'context-diary-v2';
+const CACHE = 'context-diary-v3';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'config.js', 'css/app.css',
   'js/app.js', 'js/util.js', 'js/store.js', 'js/settings.js', 'js/auth.js', 'js/drive.js', 'js/markdown.js',
@@ -41,14 +41,17 @@ self.addEventListener('push', (e) => {
   }));
 });
 
-// 通知を押したら、開いている日記アプリを前に出す。なければ開く(ホーム画面のアプリとして開く)
+// 通知を押したら、日記アプリを1日のまとめの画面で開く(開いていれば前に出してまとめの画面へ)
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil((async () => {
     const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const app = list.find((c) => c.url.startsWith(self.registration.scope));
-    if (app) return app.focus();
-    return self.clients.openWindow(self.registration.scope);
+    if (app) {
+      app.postMessage({ type: 'open-summary' });
+      return app.focus();
+    }
+    return self.clients.openWindow(self.registration.scope + '#summary');
   })());
 });
 

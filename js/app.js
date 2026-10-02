@@ -6,7 +6,7 @@ import { requestSync, onSyncState, refreshPending } from './sync.js';
 import * as voice from './voice.js';
 import { ICONS, toast, show, back, viewName } from './ui.js';
 import { initWrite, refresh as refreshWrite } from './views/write.js';
-import { initSummary } from './views/summary.js';
+import { initSummary, openSummary } from './views/summary.js';
 import { initBrowse } from './views/browse.js';
 import { initSettings } from './views/settings.js';
 
@@ -107,7 +107,17 @@ async function main() {
   });
   requestSync().then(() => { if (viewName() === 'write') refreshWrite(); });
 
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker', e));
+  // まとめの通知から開いたとき(#summary 付き、または開いていたアプリへの知らせ)は、まとめの画面にする
+  if (location.hash === '#summary') {
+    history.replaceState(null, '', location.pathname);
+    openSummary();
+  }
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker', e));
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.type === 'open-summary') openSummary();
+    });
+  }
 }
 
 main().catch((e) => {
