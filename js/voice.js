@@ -27,6 +27,12 @@ const ERRORS = {
 // 日本語の文字に接する空白だけを消し、英単語どうしの間の空白は残す
 export const tidy = (s) => s.replace(/(?<=[^\x00-\x7F]) +| +(?=[^\x00-\x7F])/g, '');
 
+// 話している途中で「改行(かいぎょう)」と言ったら改行にする
+const commands = (s) => s.replace(/\s*(改行|かいぎょう)[。、]?\s*/g, '\n');
+
+let consumed = 0; // 改行ボタンを押した時点までに入力欄へ確定させた認識結果の数
+let lastLen = 0;
+
 // 利用者の操作(クリック)の中から同期的に呼ぶこと。iPhoneはそうしないと開始できない
 export function start(textarea) {
   if (!SR) return false;
@@ -37,10 +43,13 @@ export function start(textarea) {
   r.interimResults = true;
   r.continuous = true;
   baseText = textarea.value; // 止めた後にもう一度押したら、既存の文の続きに足す
+  consumed = 0;
+  lastLen = 0;
   r.onresult = (ev) => {
     let text = '';
-    for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
-    textarea.value = baseText + tidy(text);
+    for (let i = consumed; i < ev.results.length; i++) text += ev.results[i][0].transcript;
+    lastLen = ev.results.length;
+    textarea.value = baseText + commands(tidy(text));
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
   };
   r.onerror = (ev) => {
@@ -83,6 +92,20 @@ export function stop() {
     try { r.stop(); } catch { done(); }
     notify();
   });
+}
+
+// 改行ボタン: 音声入力中でも止めずに、今の位置で改行する
+export function newline(textarea) {
+  if (rec && target === textarea) {
+    baseText = textarea.value.replace(/[ \t]+$/, '') + '\n';
+    consumed = lastLen;
+    textarea.value = baseText;
+  } else if (document.activeElement === textarea) {
+    textarea.setRangeText('\n', textarea.selectionStart, textarea.selectionEnd, 'end');
+  } else {
+    textarea.value += '\n'; // キーボードを出さないよう、入力欄は選ばずに末尾へ足す
+  }
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 export function toggle(textarea) {

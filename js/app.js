@@ -25,6 +25,10 @@ function setupVoice() {
     // clickの中で同期的に開始する(iPhoneはそうしないと音声認識を始められない)
     b.addEventListener('click', () => voice.toggle($('#' + b.dataset.micFor)));
   }
+  for (const b of $$('.nl')) {
+    b.addEventListener('pointerdown', (e) => e.preventDefault()); // 押しても入力欄の選択(カーソル位置)を外さない
+    b.addEventListener('click', () => voice.newline($('#' + b.dataset.nlFor)));
+  }
   voice.onVoiceState((on, target) => {
     for (const b of $$('.mic')) b.classList.toggle('on', on && target?.id === b.dataset.micFor);
     for (const s of $$('.micstate')) s.textContent = on && target?.id === s.dataset.stateFor ? '聞き取り中' : '停止中';

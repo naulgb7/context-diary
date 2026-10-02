@@ -46,7 +46,10 @@
         <span class="micstate" data-state-for="writeText">停止中</span>
       </div>
       <button id="writeSave" type="button">記入</button>
-      <div class="opsright"><button id="writeCancel" class="link" type="button" hidden>やめる</button></div>
+      <div class="opsright">
+        <button class="sub nl" type="button" data-nl-for="writeText">改行</button>
+        <button id="writeCancel" class="link" type="button" hidden>やめる</button>
+      </div>
     </div>
 
     <h2 class="sec">今日の記入</h2>
@@ -66,7 +69,8 @@
         <button class="mic" type="button" data-mic-for="sumText" aria-label="音声入力"></button>
         <span class="micstate" data-state-for="sumText">停止中</span>
       </div>
-      <div></div><div></div>
+      <div></div>
+      <div class="opsright"><button class="sub nl" type="button" data-nl-for="sumText">改行</button></div>
     </div>
     <div class="sumnav">
       <button id="sumPrev" class="sub" type="button">戻る</button>
