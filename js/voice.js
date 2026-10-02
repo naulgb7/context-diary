@@ -23,6 +23,10 @@ const ERRORS = {
   'network': '音声認識に電波が必要です',
 };
 
+// PCのChromeは日本語を単語ごとに空白で区切って返す(「午前 と 夕方 に」)。
+// 日本語の文字に接する空白だけを消し、英単語どうしの間の空白は残す
+export const tidy = (s) => s.replace(/(?<=[^\x00-\x7F]) +| +(?=[^\x00-\x7F])/g, '');
+
 // 利用者の操作(クリック)の中から同期的に呼ぶこと。iPhoneはそうしないと開始できない
 export function start(textarea) {
   if (!SR) return false;
@@ -36,7 +40,7 @@ export function start(textarea) {
   r.onresult = (ev) => {
     let text = '';
     for (let i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
-    textarea.value = baseText + text;
+    textarea.value = baseText + tidy(text);
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
   };
   r.onerror = (ev) => {
