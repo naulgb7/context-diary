@@ -31,11 +31,25 @@ function setupVoice() {
   for (const ta of [$('#writeText'), $('#sumText')]) {
     const hint = $(`.nlhint[data-hint-for="${ta.id}"]`);
     const ops = ta.parentElement.querySelector('.ops');
+    // キーボードで直している間は、入力欄をキーボードの上に収まる高さにして、欄の中でスクロールさせる。
+    // 伸びたままだとカーソルの行がキーボードの下に隠れるため
+    const fitKeyboard = () => {
+      if (document.activeElement !== ta) return;
+      const headerH = $('.top').offsetHeight;
+      const visible = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      ta.style.overflowY = 'auto';
+      ta.style.height = `${Math.max(120, visible - headerH - 24)}px`;
+      const top = ta.getBoundingClientRect().top;
+      window.scrollBy(0, top - headerH - 8);
+      if (ta.selectionStart === ta.value.length) ta.scrollTop = ta.scrollHeight;
+    };
     const update = () => {
+      hint.hidden = !ta.value.endsWith('\n');
+      if (document.activeElement === ta) return fitKeyboard();
+      ta.style.overflowY = '';
       ta.style.height = 'auto';
       ta.style.height = `${Math.max(140, ta.scrollHeight + 2)}px`;
-      hint.hidden = !ta.value.endsWith('\n');
-      if (document.activeElement !== ta && !ta.closest('.view').hidden) {
+      if (!ta.closest('.view').hidden) {
         const limit = window.innerHeight - $('.tabs').offsetHeight - 8;
         const bottom = ops.getBoundingClientRect().bottom;
         if (bottom > limit) window.scrollBy(0, bottom - limit);
@@ -43,6 +57,9 @@ function setupVoice() {
     };
     ta.addEventListener('input', update);
     ta.addEventListener('change', update);
+    ta.addEventListener('focus', () => setTimeout(fitKeyboard, 350)); // キーボードが出きってから合わせる
+    ta.addEventListener('blur', () => setTimeout(update, 50));
+    window.visualViewport?.addEventListener('resize', fitKeyboard);
     ta.updateHint = update; // 画面側で値を入れ替えたときに呼ぶ
   }
   for (const b of $$('.nl')) {
