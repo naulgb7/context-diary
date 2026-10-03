@@ -24,7 +24,7 @@ button:disabled { opacity: .4; }
 button.wide { width: 100%; }
 input, textarea { font: inherit; font-size: 1rem; color: var(--fg); background: var(--bg);
   border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
-textarea { width: 100%; min-height: 140px; resize: vertical; margin-top: 10px; }
+textarea { width: 100%; min-height: 140px; resize: none; overflow: hidden; margin-top: 10px; }
 [hidden] { display: none !important; }
 
 /* 上の帯 */

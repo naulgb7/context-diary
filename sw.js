@@ -1,6 +1,6 @@
 // オフラインでも開けるようにアプリ本体を端末に保存する。
 // 電波があるときは常に最新を取りに行き(3秒で諦めて保存版を使う)、更新がすぐ反映されるようにする
-const CACHE = 'context-diary-v6';
+const CACHE = 'context-diary-v7';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'config.js', 'css/app.css',
   'js/app.js', 'js/util.js', 'js/store.js', 'js/settings.js', 'js/auth.js', 'js/drive.js', 'js/markdown.js',
@@ -59,7 +59,8 @@ async function networkFirst(req) {
   const cache = await caches.open(CACHE);
   try {
     const res = await Promise.race([
-      fetch(req),
+      // ブラウザ側の保存(GitHub Pagesは10分保存させる)を使わず、毎回新しい版があるか確かめる
+      fetch(req, { cache: 'no-cache' }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
     ]);
     if (res.ok) cache.put(req, res.clone());

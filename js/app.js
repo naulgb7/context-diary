@@ -25,13 +25,21 @@ function setupVoice() {
     // clickの中で同期的に開始する(iPhoneはそうしないと音声認識を始められない)
     b.addEventListener('click', () => voice.toggle($('#' + b.dataset.micFor)));
   }
-  // 末尾の改行は入力欄の上では見えないので、改行したことを下に表示し、最後の行が見えるよう送る
+  // 入力欄は中身に合わせて高さを伸ばす(入力欄の中だけのスクロールはiPhoneで動かしにくいため、画面ごと送る)。
+  // 音声入力や改行ボタンで文が増えたときは、文の最後とマイク・記入ボタンが見える位置まで画面を送る。
+  // 末尾の改行は見えないので、改行したことを入力欄の下に表示する
   for (const ta of [$('#writeText'), $('#sumText')]) {
     const hint = $(`.nlhint[data-hint-for="${ta.id}"]`);
+    const ops = ta.parentElement.querySelector('.ops');
     const update = () => {
-      const ends = ta.value.endsWith('\n');
-      hint.hidden = !ends;
-      if (ends && document.activeElement !== ta) ta.scrollTop = ta.scrollHeight;
+      ta.style.height = 'auto';
+      ta.style.height = `${Math.max(140, ta.scrollHeight + 2)}px`;
+      hint.hidden = !ta.value.endsWith('\n');
+      if (document.activeElement !== ta && !ta.closest('.view').hidden) {
+        const limit = window.innerHeight - $('.tabs').offsetHeight - 8;
+        const bottom = ops.getBoundingClientRect().bottom;
+        if (bottom > limit) window.scrollBy(0, bottom - limit);
+      }
     };
     ta.addEventListener('input', update);
     ta.addEventListener('change', update);

@@ -7,6 +7,7 @@ import { generateQuestion, resetModel } from '../gemini.js';
 import { nextQuestion } from '../questions.js';
 import { toast, onShow } from '../ui.js';
 import * as push from '../push.js';
+import { APP_VERSION } from '../../config.js';
 
 // 画面で編集中の一覧(空欄の行も残しておき、保存するときに空欄を除く)
 let summaryQs = [];
@@ -64,7 +65,7 @@ function render() {
       <p class="note">iPhoneで音声認識の確認を一度「許可しない」にした場合は、「設定 → プライバシーとセキュリティ → 音声認識」で許可し、このアプリを閉じてから開き直してください。</p>
     </div>
 
-    <p class="note" style="margin:18px 0 0">試作(動作確認用)の画面: <a href="prototype.html">prototype.html</a></p>
+    <p class="note" style="margin:18px 0 0">アプリの版: ${APP_VERSION}<br>試作(動作確認用)の画面: <a href="prototype.html">prototype.html</a></p>
   `;
   renderAccount();
   renderPush();
