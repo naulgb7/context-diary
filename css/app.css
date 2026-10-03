@@ -61,6 +61,7 @@ textarea { width: 100%; min-height: 140px; resize: none; overflow: hidden; margi
 .micwrap { display: flex; align-items: center; gap: 8px; }
 .opsright { justify-self: end; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .nl { padding: 6px 12px; font-size: .9rem; }
+body.kb { padding-bottom: 100vh; }
 .nlhint { margin-top: 4px; font-size: .82rem; color: var(--accent); }
 .mic { width: 56px; height: 56px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; flex: none; }
 .mic svg { width: 26px; height: 26px; fill: var(--accent-fg); }

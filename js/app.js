@@ -20,6 +20,24 @@ function setupIcons() {
   }
 }
 
+// 入力欄の中でのカーソルの縦位置(欄の先頭からの距離)を、同じ書式の見えない写しで測る
+function caretY(ta) {
+  const cs = getComputedStyle(ta);
+  const div = document.createElement('div');
+  for (const p of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'boxSizing']) {
+    div.style[p] = cs[p];
+  }
+  Object.assign(div.style, { position: 'absolute', visibility: 'hidden', top: '0', left: '-9999px', width: `${ta.clientWidth + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth)}px`, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'break-word', borderStyle: 'solid' });
+  div.textContent = ta.value.slice(0, ta.selectionStart);
+  const mark = document.createElement('span');
+  mark.textContent = '|';
+  div.appendChild(mark);
+  document.body.appendChild(div);
+  const y = mark.offsetTop;
+  div.remove();
+  return y;
+}
+
 function setupVoice() {
   for (const b of $$('.mic')) {
     // clickの中で同期的に開始する(iPhoneはそうしないと音声認識を始められない)
@@ -36,16 +54,25 @@ function setupVoice() {
     const fitKeyboard = () => {
       if (document.activeElement !== ta) return;
       const headerH = $('.top').offsetHeight;
-      const visible = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const vv = window.visualViewport;
+      const visible = vv ? vv.height : window.innerHeight;
       ta.style.overflowY = 'auto';
-      ta.style.height = `${Math.max(120, visible - headerH - 24)}px`;
-      const top = ta.getBoundingClientRect().top;
-      window.scrollBy(0, top - headerH - 8);
-      if (ta.selectionStart === ta.value.length) ta.scrollTop = ta.scrollHeight;
+      // 欄を縮めるとページが短くなって送った位置が戻ってしまうので、入力中は下に余白を足しておく
+      document.body.classList.add('kb');
+      // 欄の上端をタイトルのすぐ下へ送り、実際の上端からキーボードの上端までに収まる高さにする
+      window.scrollBy(0, ta.getBoundingClientRect().top - headerH - 8);
+      const top = ta.getBoundingClientRect().top - (vv?.offsetTop || 0);
+      ta.style.height = `${Math.max(100, visible - top - 12)}px`;
+      // 欄を縮めるとタップした位置のカーソルが欄の外に出るので、カーソルの行が欄の中ほどに来るよう送る
+      const y = caretY(ta);
+      if (y < ta.scrollTop + 8 || y > ta.scrollTop + ta.clientHeight - 40) {
+        ta.scrollTop = Math.max(0, y - ta.clientHeight / 2);
+      }
     };
     const update = () => {
       hint.hidden = !ta.value.endsWith('\n');
       if (document.activeElement === ta) return fitKeyboard();
+      document.body.classList.remove('kb');
       ta.style.overflowY = '';
       ta.style.height = 'auto';
       ta.style.height = `${Math.max(140, ta.scrollHeight + 2)}px`;
