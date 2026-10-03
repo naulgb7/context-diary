@@ -74,7 +74,9 @@ function setupVoice() {
     };
     const update = () => {
       hint.hidden = !ta.value.endsWith('\n');
-      if (document.activeElement === ta) return fitKeyboard();
+      // キーボードで入力している間は、欄の大きさもカーソルも触らない(日本語の変換中に触ると変換が壊れる)。
+      // 欄を合わせるのは、キーボードが出たときと大きさが変わったときだけ
+      if (document.activeElement === ta) return;
       document.body.classList.remove('kb');
       ta.style.overflowY = '';
       ta.style.height = 'auto';
