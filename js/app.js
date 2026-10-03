@@ -51,8 +51,11 @@ function setupVoice() {
     const ops = ta.parentElement.querySelector('.ops');
     // キーボードで直している間は、入力欄をキーボードの上に収まる高さにして、欄の中でスクロールさせる。
     // 伸びたままだとカーソルの行がキーボードの下に隠れるため
+    let composing = false;
+    ta.addEventListener('compositionstart', () => { composing = true; });
+    ta.addEventListener('compositionend', () => { composing = false; });
     const fitKeyboard = () => {
-      if (document.activeElement !== ta) return;
+      if (document.activeElement !== ta || composing) return;
       const headerH = $('.top').offsetHeight;
       const vv = window.visualViewport;
       const visible = vv ? vv.height : window.innerHeight;
