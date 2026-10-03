@@ -111,6 +111,7 @@ async function save() {
       toast('記入しました');
     }
     ta.value = '';
+    ta.updateHint?.();
     renderQuestion();
     await renderToday();
     await refreshPending();
@@ -126,6 +127,7 @@ async function startEdit(id) {
   await voice.stop();
   editingId = id;
   $('#writeText').value = e.text;
+  $('#writeText').updateHint?.();
   $('#writeSave').textContent = '更新';
   $('#writeCancel').hidden = false;
   renderQuestion();
@@ -137,6 +139,7 @@ async function cancelEdit() {
   await voice.stop();
   editingId = null;
   $('#writeText').value = '';
+  $('#writeText').updateHint?.();
   $('#writeSave').textContent = '記入';
   $('#writeCancel').hidden = true;
   renderQuestion();

@@ -25,6 +25,18 @@ function setupVoice() {
     // clickの中で同期的に開始する(iPhoneはそうしないと音声認識を始められない)
     b.addEventListener('click', () => voice.toggle($('#' + b.dataset.micFor)));
   }
+  // 末尾の改行は入力欄の上では見えないので、改行したことを下に表示し、最後の行が見えるよう送る
+  for (const ta of [$('#writeText'), $('#sumText')]) {
+    const hint = $(`.nlhint[data-hint-for="${ta.id}"]`);
+    const update = () => {
+      const ends = ta.value.endsWith('\n');
+      hint.hidden = !ends;
+      if (ends && document.activeElement !== ta) ta.scrollTop = ta.scrollHeight;
+    };
+    ta.addEventListener('input', update);
+    ta.addEventListener('change', update);
+    ta.updateHint = update; // 画面側で値を入れ替えたときに呼ぶ
+  }
   for (const b of $$('.nl')) {
     b.addEventListener('pointerdown', (e) => e.preventDefault()); // 押しても入力欄の選択(カーソル位置)を外さない
     b.addEventListener('click', () => voice.newline($('#' + b.dataset.nlFor)));

@@ -56,6 +56,7 @@ function render() {
   $('#sumPos').textContent = `${sm.pos + 1}/${n}`;
   $('#sumQ').textContent = q;
   $('#sumText').value = sm.answers[q] || '';
+  $('#sumText').updateHint?.();
   $('#sumPrev').disabled = sm.pos === 0;
   $('#sumNext').textContent = sm.pos === n - 1 ? '完了' : '次へ';
 }
