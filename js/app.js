@@ -68,6 +68,9 @@ function setupVoice() {
       if (y < ta.scrollTop + 8 || y > ta.scrollTop + ta.clientHeight - 40) {
         ta.scrollTop = Math.max(0, y - ta.clientHeight / 2);
       }
+      // iPhoneは入力中の欄の高さやスクロールを変えるとカーソルの表示が消えるので、選択位置を入れ直して描き直させる
+      const { selectionStart: s, selectionEnd: e } = ta;
+      requestAnimationFrame(() => { if (document.activeElement === ta) ta.setSelectionRange(s, e); });
     };
     const update = () => {
       hint.hidden = !ta.value.endsWith('\n');
