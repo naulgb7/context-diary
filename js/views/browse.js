@@ -64,7 +64,7 @@ async function renderDay(day) {
   const answered = sm ? orderedAnswers(sm).filter(([, a]) => a && a.trim()) : [];
   let html = `<h2>${esc(dayLabel(day))}</h2>`;
   if (!entries.length && !answered.length) {
-    $('#dayView').innerHTML = html + '<div class="empty">この日の記入はありません</div>';
+    $('#dayView').innerHTML = html + '<div class="empty">この日は何もありません</div>';
     return;
   }
   if (answered.length) {
@@ -72,7 +72,7 @@ async function renderDay(day) {
     for (const [q, a] of answered) html += `<h3>${esc(q)}</h3><div class="ans">${esc(a)}</div>`;
   }
   if (entries.length) {
-    html += '<h2>記入</h2>';
+    html += '<h2>メモ</h2>';
     for (const e of entries) {
       const d = dateFromId(e.id);
       const time = d ? (ymd(d) === day ? hm(d) : `${d.getMonth() + 1}/${d.getDate()} ${hm(d)}`) : '';

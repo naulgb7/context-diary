@@ -1,4 +1,4 @@
-// 記入画面: 問い・入力欄・マイク・記入ボタン・今日の記入
+// 記入画面: 問い・入力欄・マイク・保存ボタン・今日のメモ
 import { $, esc, diaryDay, newId, dateFromId, hm, toMinutes } from '../util.js';
 import * as store from '../store.js';
 import * as voice from '../voice.js';
@@ -57,7 +57,7 @@ async function renderToday() {
   const list = (await store.entriesOfDay(day)).filter((e) => !e.deleted).sort((a, b) => b.id.localeCompare(a.id));
   const box = $('#todayList');
   if (!list.length) {
-    box.innerHTML = '<div class="empty">まだ記入はありません</div>';
+    box.innerHTML = '<div class="empty">今日はまだ何もありません</div>';
     return;
   }
   box.innerHTML = list.map((e) => {
@@ -92,14 +92,14 @@ async function save() {
     if (editingId) {
       const e = await store.getEntry(editingId);
       if (!e || e.day !== today()) {
-        toast('直せるのはその日の記入だけです');
+        toast('直せるのはその日のメモだけです');
       } else {
         await store.putEntry({ ...e, text, updatedAt: nowIso, dirty: true });
-        toast('直しました');
+        toast('保存しました');
       }
       editingId = null;
       $('#writeCancel').hidden = true;
-      btn.textContent = '記入';
+      btn.textContent = '保存';
     } else {
       const now = new Date();
       const id = newId(now);
@@ -108,7 +108,7 @@ async function save() {
       if (question) await logQuestion(questionLogRecord(question, dropped ? 'skipped' : 'answered', id, now));
       dropped = false;
       question = await nextQuestion();
-      toast('記入しました');
+      toast('保存しました');
     }
     ta.value = '';
     ta.updateHint?.();
@@ -128,7 +128,7 @@ async function startEdit(id) {
   editingId = id;
   $('#writeText').value = e.text;
   $('#writeText').updateHint?.();
-  $('#writeSave').textContent = '更新';
+  $('#writeSave').textContent = '保存';
   $('#writeCancel').hidden = false;
   renderQuestion();
   await renderToday();
@@ -140,7 +140,7 @@ async function cancelEdit() {
   editingId = null;
   $('#writeText').value = '';
   $('#writeText').updateHint?.();
-  $('#writeSave').textContent = '記入';
+  $('#writeSave').textContent = '保存';
   $('#writeCancel').hidden = true;
   renderQuestion();
   await renderToday();
@@ -150,10 +150,10 @@ async function remove(id) {
   const e = await store.getEntry(id);
   if (!e) return;
   if (e.day !== today()) {
-    toast('消せるのはその日の記入だけです');
+    toast('消せるのはその日のメモだけです');
     return;
   }
-  if (!confirm('この記入を消しますか?')) return;
+  if (!confirm('このメモを消しますか?')) return;
   await store.putEntry({ ...e, deleted: true, dirty: true, updatedAt: new Date().toISOString() });
   if (editingId === id) await cancelEdit();
   await renderToday();
