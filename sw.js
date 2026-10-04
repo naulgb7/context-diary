@@ -1,6 +1,6 @@
 // オフラインでも開けるようにアプリ本体を端末に保存する。
 // 電波があるときは常に最新を取りに行き(3秒で諦めて保存版を使う)、更新がすぐ反映されるようにする
-const CACHE = 'context-diary-v13';
+const CACHE = 'context-diary-v14';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'config.js', 'css/app.css',
   'js/app.js', 'js/util.js', 'js/store.js', 'js/settings.js', 'js/auth.js', 'js/drive.js', 'js/markdown.js',

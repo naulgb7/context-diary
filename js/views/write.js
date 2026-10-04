@@ -64,7 +64,7 @@ async function renderToday() {
     const d = dateFromId(e.id);
     return `<div class="entry${e.id === editingId ? ' editing' : ''}" data-id="${esc(e.id)}">
       <div class="meta"><span>${d ? hm(d) : ''}${e.dirty ? ' (未送信)' : ''}</span>
-        <span><button class="link" data-act="edit" type="button">直す</button><button class="link" data-act="del" type="button">消す</button></span></div>
+        <span class="acts"><button class="act-edit" data-act="edit" type="button">修正</button><button class="act-del" data-act="del" type="button">削除</button></span></div>
       ${e.question ? `<div class="q">問い: ${esc(e.question)}</div>` : ''}
       <div class="body">${esc(e.text)}</div></div>`;
   }).join('');

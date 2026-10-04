@@ -120,3 +120,9 @@ mark { background: var(--mark); color: inherit; }
 
 .toast { position: fixed; left: 16px; right: 16px; bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom)); z-index: 20;
   max-width: 600px; margin: 0 auto; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 10px 14px; font-size: .9rem; }
+
+/* 今日のメモの「修正」(薄い緑)と「削除」(薄い赤) */
+.acts { display: flex; gap: 6px; }
+.acts button { padding: 3px 12px; font-size: .85rem; border-radius: 6px; }
+.act-edit { background: #dff3e4; color: #1e5e30; border-color: #b9e0c3; }
+.act-del { background: #fbe1df; color: #8c1d18; border-color: #f2bdb8; }
