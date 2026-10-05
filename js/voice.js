@@ -65,7 +65,7 @@ export function start(textarea) {
     }
   };
   // 前の音声入力がiPhoneの中で終わりきらないうちに始めると、マイクは赤いのに音を拾わないことがある。
-  // 5秒たってもマイクが音を拾い始めなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
+  // 3秒たってもマイクが音を拾い始めなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
   let heard = false;
   r.onaudiostart = r.onsoundstart = () => { heard = true; };
   const watchdog = setTimeout(() => {
@@ -74,7 +74,7 @@ export function start(textarea) {
     try { r.abort(); } catch { /* 既に止まっている */ }
     notify();
     errorHandler('音声入力が始まりませんでした。もう一度マイクを押してください');
-  }, 5000);
+  }, 3000);
   rec = r;
   try {
     r.start();
