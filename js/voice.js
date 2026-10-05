@@ -46,6 +46,7 @@ export function start(textarea) {
   consumed = 0;
   lastLen = 0;
   r.onresult = (ev) => {
+    heard = true;
     let text = '';
     for (let i = consumed; i < ev.results.length; i++) text += ev.results[i][0].transcript;
     lastLen = ev.results.length;
@@ -57,11 +58,23 @@ export function start(textarea) {
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
   };
   r.onend = () => {
+    clearTimeout(watchdog);
     if (rec === r) {
       rec = null;
       notify();
     }
   };
+  // 前の音声入力がiPhoneの中で終わりきらないうちに始めると、マイクは赤いのに音を拾わないことがある。
+  // 3秒たっても音を拾い始めなければ、赤いままにせず止めて知らせる
+  let heard = false;
+  r.onaudiostart = r.onsoundstart = () => { heard = true; };
+  const watchdog = setTimeout(() => {
+    if (heard || rec !== r) return;
+    rec = null;
+    try { r.abort(); } catch { /* 既に止まっている */ }
+    notify();
+    errorHandler('音声入力が始まりませんでした。もう一度マイクを押してください');
+  }, 3000);
   rec = r;
   try {
     r.start();
