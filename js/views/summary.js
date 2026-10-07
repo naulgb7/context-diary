@@ -24,7 +24,7 @@ export function initSummary() {
   });
 }
 
-export async function openSummary() {
+export async function openSummary(startPos = null) {
   const day = diaryDay(new Date(), settings().dayBoundary);
   const saved = await store.getSummary(day);
   const configured = settings().summaryQuestions.filter((q) => q.trim());
@@ -39,7 +39,7 @@ export async function openSummary() {
     day,
     answers: { ...answers },
     questions,
-    pos: saved && saved.status !== 'done' ? Math.min(saved.pos || 0, questions.length - 1) : 0,
+    pos: startPos !== null ? Math.min(startPos, questions.length - 1) : saved && saved.status !== 'done' ? Math.min(saved.pos || 0, questions.length - 1) : 0,
     status: saved?.status || 'draft',
     updatedAt: saved?.updatedAt || '',
     dirty: saved?.dirty || false,
@@ -49,6 +49,10 @@ export async function openSummary() {
   show('summary');
   render();
 }
+
+// 音声入力の立て直し(画面の読み込み直し)の前後で使う
+export const currentPos = () => (sm ? sm.pos : null);
+export const flushSummary = () => persist();
 
 function render() {
   const n = sm.questions.length;

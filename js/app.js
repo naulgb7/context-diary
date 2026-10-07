@@ -1,12 +1,12 @@
 // 起動と画面の切り替え
 import { $, $$ } from './util.js';
-import { loadSettings } from './settings.js';
+import { loadSettings, lsGet, lsSet } from './settings.js';
 import { isSignedIn, signIn, onAuthChange } from './auth.js';
 import { requestSync, onSyncState, refreshPending } from './sync.js';
 import * as voice from './voice.js';
 import { ICONS, toast, show, back, viewName } from './ui.js';
-import { initWrite, refresh as refreshWrite } from './views/write.js';
-import { initSummary, openSummary } from './views/summary.js';
+import { initWrite, refresh as refreshWrite, editingEntry, resumeEdit } from './views/write.js';
+import { initSummary, openSummary, currentPos, flushSummary } from './views/summary.js';
 import { initBrowse } from './views/browse.js';
 import { initSettings } from './views/settings.js';
 
@@ -36,6 +36,37 @@ function caretY(ta) {
   const y = mark.offsetTop;
   div.remove();
   return y;
+}
+
+// マイクをつかめなくなったら、書きかけを控えて画面を読み込み直す(アプリを開き直したのと同じ効果)。
+// 読み込み直した後は同じ画面・同じ書きかけに戻す。続けて失敗したときは読み込み直さずに知らせるだけにする
+const RECOVER_KEY = 'voiceRecover';
+function recoverVoice() {
+  const last = Number(lsGet('voiceRecoverAt') || 0);
+  if (Date.now() - last < 60000) return false;
+  const view = viewName();
+  const state = { view, write: $('#writeText').value, editing: editingEntry(), sumPos: view === 'summary' ? currentPos() : null };
+  lsSet('voiceRecoverAt', String(Date.now()));
+  lsSet(RECOVER_KEY, JSON.stringify(state));
+  toast('マイクの準備をし直しています…', 3000);
+  (view === 'summary' ? flushSummary() : Promise.resolve()).finally(() => setTimeout(() => location.reload(), 600));
+  return true;
+}
+
+async function resumeAfterRecover() {
+  const raw = lsGet(RECOVER_KEY);
+  if (!raw) return;
+  lsSet(RECOVER_KEY, null);
+  try {
+    const s = JSON.parse(raw);
+    if (s.view === 'summary') await openSummary(s.sumPos);
+    else if (s.editing) await resumeEdit(s.editing, s.write);
+    else if (s.write) $('#writeText').value = s.write;
+    $('#writeText').updateHint?.();
+    toast('マイクの準備ができました。もう一度マイクを押してください', 6000);
+  } catch (e) {
+    console.warn('立て直し後の復元に失敗', e);
+  }
 }
 
 function setupVoice() {
@@ -107,6 +138,7 @@ function setupVoice() {
     $('#tabWrite').classList.toggle('listening', on);
   });
   voice.onVoiceError((msg) => toast(msg, 7000));
+  voice.onVoiceStuck(recoverVoice);
 }
 
 function setupTabs() {
@@ -172,6 +204,7 @@ async function main() {
   initBrowse();
   initSettings();
   show('write');
+  await resumeAfterRecover();
 
   window.addEventListener('online', () => requestSync());
   window.addEventListener('offline', () => refreshPending().then(() => requestSync()));

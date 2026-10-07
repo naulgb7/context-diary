@@ -11,6 +11,9 @@ let errorHandler = () => {};
 
 export const onVoiceState = (fn) => listeners.add(fn);
 export const onVoiceError = (fn) => { errorHandler = fn; };
+// マイクをつかめなくなったときの立て直し役。立て直しを引き受けたら true を返す
+let stuckHandler = () => false;
+export const onVoiceStuck = (fn) => { stuckHandler = fn; };
 export const isListening = () => !!rec;
 export const currentTarget = () => target;
 const notify = () => listeners.forEach((fn) => fn(!!rec, target));
@@ -55,6 +58,8 @@ export function start(textarea) {
   };
   r.onerror = (ev) => {
     if (ev.error === 'aborted') return;
+    // iPhoneは音声入力を何度か使うと、このページの中だけマイクをつかめなくなることがある(開き直すと直る)
+    if (ev.error === 'audio-capture' && stuckHandler()) return;
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
   };
   r.onend = () => {
@@ -73,6 +78,7 @@ export function start(textarea) {
     rec = null;
     try { r.abort(); } catch { /* 既に止まっている */ }
     notify();
+    if (stuckHandler()) return; // マイクをつかめなくなっている状態とみて立て直す
     errorHandler('音声入力が始まりませんでした。もう一度マイクを押してください');
   }, 3000);
   rec = r;
