@@ -7,6 +7,7 @@ import { generateQuestion, resetModel } from '../gemini.js';
 import { nextQuestion } from '../questions.js';
 import { toast, onShow } from '../ui.js';
 import * as push from '../push.js';
+import { voiceLog } from '../voice.js';
 import { APP_VERSION } from '../../config.js';
 
 // 画面で編集中の一覧(空欄の行も残しておき、保存するときに空欄を除く)
@@ -61,6 +62,12 @@ function render() {
     </div>
 
     <div class="set">
+      <h2>音声入力の記録(調査用)</h2>
+      <p class="note">音声入力がうまくいかなかったときに、この記録をコピーして伝えてください。</p>
+      <div class="row"><button type="button" class="sub" id="vlogCopy">記録をコピー</button><button type="button" class="sub" id="vlogClear">記録を消す</button></div>
+    </div>
+
+    <div class="set">
       <h2>音声入力について</h2>
       <p class="note">iPhoneで音声認識の確認を一度「許可しない」にした場合は、「設定 → プライバシーとセキュリティ → 音声認識」で許可し、このアプリを閉じてから開き直してください。</p>
     </div>
@@ -73,6 +80,11 @@ function render() {
   renderRndList();
   $('#gemModel').textContent = getGeminiModel() ? `使うモデル: ${getGeminiModel().replace('models/', '')}` : '';
 
+  $('#vlogCopy').addEventListener('click', async () => {
+    const text = [`版 ${APP_VERSION}`, navigator.userAgent, ...voiceLog()].join('\n');
+    try { await navigator.clipboard.writeText(text); toast('音声入力の記録をコピーしました'); } catch { toast('コピーできませんでした', 5000); }
+  });
+  $('#vlogClear').addEventListener('click', () => { try { localStorage.removeItem('voiceLog'); } catch { /* 何もしない */ } toast('記録を消しました'); });
   $('#setSumStart').addEventListener('change', (e) => updateSettings({ summaryStartTime: e.target.value || '21:00' }));
   $('#setBoundary').addEventListener('change', (e) => updateSettings({ dayBoundary: e.target.value || '04:00' }).then(requestSync));
   $('#sumAdd').addEventListener('click', () => {

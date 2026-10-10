@@ -3,6 +3,17 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 export const available = !!SR;
 
+// 音声入力の調査用の記録(直近80件)。設定画面で見て、コピーしてもらう
+export function vlog(msg) {
+  try {
+    const list = JSON.parse(localStorage.getItem('voiceLog') || '[]');
+    const d = new Date();
+    list.push(`${d.toLocaleTimeString('ja-JP')}.${String(d.getMilliseconds()).padStart(3, '0')} ${msg}`);
+    localStorage.setItem('voiceLog', JSON.stringify(list.slice(-80)));
+  } catch { /* 記録できなくても動作は続ける */ }
+}
+export const voiceLog = () => { try { return JSON.parse(localStorage.getItem('voiceLog') || '[]'); } catch { return []; } };
+
 let rec = null;
 let target = null; // 入力中のtextarea
 let baseText = '';
@@ -42,6 +53,7 @@ let lastLen = 0;
 // 利用者の操作(クリック)の中から同期的に呼ぶこと。iPhoneはそうしないと開始できない
 export function start(textarea) {
   if (!SR) return false;
+  vlog(`start 入力欄=${textarea.id} キーボード=${document.activeElement?.matches?.('textarea, input') ? 'あり' : 'なし'} 前の認識=${rec ? 'あり' : 'なし'}`);
   if (rec) stopNow();
   // キーボードで入力した直後(キーボードが出たまま)に始めると、iPhoneでは声が文字にならなくなることがある。
   // 先にキーボードを閉じてから始める
@@ -57,6 +69,7 @@ export function start(textarea) {
   const session = { gotResult: false, startedAt: Date.now() };
   current = session;
   r.onresult = (ev) => {
+    if (!session.gotResult) vlog('result(最初の文字)');
     heard = true;
     session.gotResult = true;
     clearTimeout(soundTimer);
@@ -67,12 +80,14 @@ export function start(textarea) {
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
   };
   r.onerror = (ev) => {
+    vlog(`error ${ev.error}`);
     if (ev.error === 'aborted') return;
     // iPhoneは音声入力を何度か使うと、このページの中だけマイクをつかめなくなることがある(開き直すと直る)
     if (ev.error === 'audio-capture' && stuckHandler()) return;
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
   };
   r.onend = () => {
+    vlog(`end 文字=${session.gotResult ? 'あり' : 'なし'}`);
     clearTimeout(watchdog);
     clearTimeout(soundTimer);
     if (rec === r) {
@@ -83,14 +98,18 @@ export function start(textarea) {
   // 前の音声入力がiPhoneの中で終わりきらないうちに始めると、マイクは赤いのに音を拾わないことがある。
   // 3秒たってもマイクが音を拾い始めなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
   let heard = false;
-  r.onaudiostart = () => { heard = true; };
+  r.onstart = () => vlog('onstart');
+  r.onaudiostart = () => { heard = true; vlog('audiostart'); };
+  r.onsoundstart = () => vlog('soundstart');
   // マイクは開いていて声も拾っているのに、文字が5秒たっても出てこないときも、同じく詰まっているとみて立て直す
   let soundTimer = null;
   r.onspeechstart = () => { // 物音(soundstart)では数えず、声(speechstart)を拾ったときだけ見張る
+    vlog('speechstart');
     heard = true;
     if (session.gotResult || soundTimer) return;
     soundTimer = setTimeout(() => {
       if (session.gotResult || rec !== r) return;
+      vlog('見張り: 声を拾って5秒文字なし');
       rec = null;
       try { r.abort(); } catch { /* 既に止まっている */ }
       notify();
@@ -100,6 +119,7 @@ export function start(textarea) {
   };
   const watchdog = setTimeout(() => {
     if (heard || rec !== r) return;
+    vlog('見張り: 3秒マイク開かず');
     rec = null;
     try { r.abort(); } catch { /* 既に止まっている */ }
     notify();
@@ -156,6 +176,7 @@ export function toggle(textarea) {
   if (rec && target === textarea) {
     // 赤いまま文字が1つも出ないので止めた、という場合は詰まっているとみて立て直す(書きかけは残る)
     const s = current;
+    vlog(`toggle停止 文字=${s?.gotResult ? 'あり' : 'なし'} 経過=${s ? Date.now() - s.startedAt : '-'}ms`);
     stop().then(() => {
       if (s && !s.gotResult && Date.now() - s.startedAt > 2500 && !stuckHandler()) errorHandler(NO_TEXT);
     });

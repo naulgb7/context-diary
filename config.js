@@ -1,5 +1,5 @@
 // アプリの版。設定画面の一番下に出す(iPhoneに新しい版が届いたかの確認用)。直したら上げる
-export const APP_VERSION = '2026-10-10.2';
+export const APP_VERSION = '2026-10-10.3';
 
 // Google Cloud で発行したクライアントID(秘密情報ではない)
 export const CLIENT_ID = '436391000512-neegb6o91iakqdik39o2s6uba7pcsvp9.apps.googleusercontent.com';

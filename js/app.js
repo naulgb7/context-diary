@@ -43,7 +43,8 @@ function caretY(ta) {
 const RECOVER_KEY = 'voiceRecover';
 function recoverVoice() {
   const last = Number(lsGet('voiceRecoverAt') || 0);
-  if (Date.now() - last < 60000) return false;
+  if (Date.now() - last < 60000) { voice.vlog('立て直し: 1分以内なので見送り'); return false; }
+  voice.vlog('立て直し: 読み込み直す');
   const view = viewName();
   const state = { view, write: $('#writeText').value, editing: editingEntry(), sumPos: view === 'summary' ? currentPos() : null };
   lsSet('voiceRecoverAt', String(Date.now()));
