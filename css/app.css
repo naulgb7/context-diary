@@ -126,3 +126,6 @@ mark { background: var(--mark); color: inherit; }
 .acts button { padding: 3px 12px; font-size: .85rem; border-radius: 6px; }
 .act-edit { background: #dff3e4; color: #1e5e30; border-color: #b9e0c3; }
 .act-del { background: #fbe1df; color: #8c1d18; border-color: #f2bdb8; }
+
+/* APIキー欄: パスワード欄(type=password)を使わずに伏せ字にする(パスワード欄はiPhoneの音声入力を止めることがあるため) */
+.masked { -webkit-text-security: disc; }

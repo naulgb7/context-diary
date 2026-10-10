@@ -16,7 +16,12 @@ let randomItems = [];
 let syncInfo = { phase: 'idle', pending: 0 };
 
 export function initSettings() {
-  onShow((name) => { if (name === 'settings') render(); });
+  // 設定画面を離れたら中身を消す。iPhoneでは、パスワード欄などがページに残っていると、
+  // 記入画面に戻ってもマイクの音声入力が文字にならなくなる(2026-10-10 オーナーの再現で確定した手順: 設定に入る→戻る→マイク)
+  onShow((name) => {
+    if (name === 'settings') render();
+    else $('#view-settings').innerHTML = '';
+  });
   onSettingsChange(() => { if (!$('#view-settings').hidden && !$('#view-settings').contains(document.activeElement)) render(); });
   onAuthChange(() => { if (!$('#view-settings').hidden) renderAccount(); });
   onSyncState((s) => { syncInfo = s; if (!$('#view-settings').hidden) renderAccount(); });
@@ -51,7 +56,7 @@ function render() {
     <div class="set">
       <h2>AI(Gemini API)</h2>
       <p class="note">APIキーはこの端末にだけ保存し、ドライブには送りません。PCとiPhoneで別々に入れてください。AIに送るのはテーマ・日時・曜日だけで、日記の本文は送りません。</p>
-      <div class="row"><input type="password" id="setGemKey" placeholder="APIキーを貼り付け" value="${esc(getGeminiKey())}" autocomplete="off"><button type="button" id="setGemSave">保存</button></div>
+      <div class="row"><input type="text" class="masked" id="setGemKey" placeholder="APIキーを貼り付け" value="${esc(getGeminiKey())}" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="button" id="setGemSave">保存</button></div>
       <div class="row"><button type="button" class="sub" id="setGemTest">試しに問いを作る</button><span class="note" id="gemModel"></span></div>
     </div>
 
