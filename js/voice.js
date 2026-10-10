@@ -33,6 +33,9 @@ export const tidy = (s) => s.replace(/(?<=[^\x00-\x7F]) +| +(?=[^\x00-\x7F])/g, 
 // 話している途中で「改行(かいぎょう)」と言ったら改行にする。PCのChromeは「開業」と聞き取るので、それも改行として扱う
 const commands = (s) => s.replace(/\s*(改行|かいぎょう|開業)[。、]?\s*/g, '\n');
 
+let current = null; // 今の音声入力で文字が出たか
+const NO_TEXT = '声が文字になりませんでした。もう一度押しても入らないときは、アプリを閉じて開き直してください';
+
 let consumed = 0; // 改行ボタンを押した時点までに入力欄へ確定させた認識結果の数
 let lastLen = 0;
 
@@ -48,8 +51,12 @@ export function start(textarea) {
   baseText = textarea.value; // 止めた後にもう一度押したら、既存の文の続きに足す
   consumed = 0;
   lastLen = 0;
+  const session = { gotResult: false, startedAt: Date.now() };
+  current = session;
   r.onresult = (ev) => {
     heard = true;
+    session.gotResult = true;
+    clearTimeout(soundTimer);
     let text = '';
     for (let i = consumed; i < ev.results.length; i++) text += ev.results[i][0].transcript;
     lastLen = ev.results.length;
@@ -64,6 +71,7 @@ export function start(textarea) {
   };
   r.onend = () => {
     clearTimeout(watchdog);
+    clearTimeout(soundTimer);
     if (rec === r) {
       rec = null;
       notify();
@@ -72,7 +80,21 @@ export function start(textarea) {
   // 前の音声入力がiPhoneの中で終わりきらないうちに始めると、マイクは赤いのに音を拾わないことがある。
   // 3秒たってもマイクが音を拾い始めなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
   let heard = false;
-  r.onaudiostart = r.onsoundstart = () => { heard = true; };
+  r.onaudiostart = () => { heard = true; };
+  // マイクは開いていて声も拾っているのに、文字が5秒たっても出てこないときも、同じく詰まっているとみて立て直す
+  let soundTimer = null;
+  r.onspeechstart = () => { // 物音(soundstart)では数えず、声(speechstart)を拾ったときだけ見張る
+    heard = true;
+    if (session.gotResult || soundTimer) return;
+    soundTimer = setTimeout(() => {
+      if (session.gotResult || rec !== r) return;
+      rec = null;
+      try { r.abort(); } catch { /* 既に止まっている */ }
+      notify();
+      if (stuckHandler()) return;
+      errorHandler(NO_TEXT);
+    }, 5000);
+  };
   const watchdog = setTimeout(() => {
     if (heard || rec !== r) return;
     rec = null;
@@ -129,7 +151,11 @@ export function newline(textarea) {
 
 export function toggle(textarea) {
   if (rec && target === textarea) {
-    stop();
+    // 赤いまま文字が1つも出ないので止めた、という場合は詰まっているとみて立て直す(書きかけは残る)
+    const s = current;
+    stop().then(() => {
+      if (s && !s.gotResult && Date.now() - s.startedAt > 2500 && !stuckHandler()) errorHandler(NO_TEXT);
+    });
     return;
   }
   start(textarea);
