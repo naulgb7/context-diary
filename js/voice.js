@@ -43,6 +43,9 @@ let lastLen = 0;
 export function start(textarea) {
   if (!SR) return false;
   if (rec) stopNow();
+  // キーボードで入力した直後(キーボードが出たまま)に始めると、iPhoneでは声が文字にならなくなることがある。
+  // 先にキーボードを閉じてから始める
+  if (document.activeElement instanceof HTMLElement && document.activeElement.matches('textarea, input')) document.activeElement.blur();
   target = textarea;
   const r = new SR();
   r.lang = 'ja-JP';
