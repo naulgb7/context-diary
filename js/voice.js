@@ -44,7 +44,6 @@ const commands = (s) => s.replace(/\s*(改行|かいぎょう|開業)[。、]?\s
 let current = null; // 今の音声入力で文字が出たか
 // 2026-10-10 の記録では、マイクは開くのに声が届かない状態が30秒〜1分続き、画面の読み込み直しでは直らず、時間がたつと直った。
 // アプリの中では直せないので、知らせて待ってもらう
-const BUSY = 'マイクの準備中です。前の音声入力から1分ほどは使えないことがあります。入力欄を押してキーボードのマイクで入力するか、少し待ってからもう一度押してください';
 const NO_TEXT = 'マイクに声が届いていないようです。スマートグラスやイヤホンなどのBluetooth機器をつないでいるときは外すか、30秒ほど待ってからもう一度押してください';
 
 // iPhoneは話した内容を1つの結果に足し続けて返すことが多いので、結果の数ではなく文字数で区切る。
@@ -125,20 +124,7 @@ export function start(textarea) {
     const ms = Date.now() - session.startedAt;
     vlog(`onstart ${ms}ms${ms < 200 ? '(速すぎる: 前の回のマイクが残っている疑い)' : ''}`);
   };
-  r.onaudiostart = () => {
-    heard = true;
-    const ms = Date.now() - session.startedAt;
-    vlog(`audiostart ${ms}ms`);
-    // 2026-10-10 の記録: 前の回の直後(約1分以内)は、押してから0.1秒もたたずにマイクが開いた合図が来て、声は届かない。
-    // 正常なときは0.25秒以上かかる。速すぎるときは使えないマイクとみて、すぐ止めて知らせる(赤いまま待たせない)
-    if (mine() && ms < 100 && rec === r) {
-      vlog('使えないマイクと判定して止める');
-      rec = null;
-      try { r.abort(); } catch { /* 既に止まっている */ }
-      notify();
-      errorHandler(BUSY);
-    }
-  };
+  r.onaudiostart = () => { heard = true; vlog('audiostart'); };
   r.onsoundstart = () => vlog('soundstart');
   r.onsoundend = () => vlog('soundend');
   r.onspeechend = () => vlog('speechend');
@@ -200,7 +186,7 @@ export function start(textarea) {
 function stopNow() {
   const r = rec;
   rec = null;
-  try { r.abort(); } catch { /* 既に止まっている */ }
+  try { r.stop(); } catch { /* 既に止まっている */ }
   notify();
 }
 
@@ -214,8 +200,7 @@ export function stop() {
     r.addEventListener('end', done, { once: true });
     setTimeout(done, 1500); // endが来ない端末への保険
     rec = null;
-    // stop ではなく abort で止める。画面に出ている文字は残る。stop だとマイクが長く残る疑いがあるため(2026-10-10)
-    try { r.abort(); } catch { done(); }
+    try { r.stop(); } catch { done(); }
     notify();
   });
 }
