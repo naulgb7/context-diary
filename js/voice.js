@@ -51,69 +51,92 @@ const NO_TEXT = 'マイクに声が届いていないようです。スマート
 let consumed = 0;
 let lastFull = '';
 
+// 認識の仕組みは1つだけ作って使い回す。
+// 2026-10-10 の記録: 止めるたびに新しく作ると、次の回はマイクが開いたように見えて(開始の合図が5ミリ秒で返る)声が届かず、
+// 15〜40秒後に audio-capture で終わるまで使えなかった。前の回のマイクが残ったまま新しい回がつながっている形
+let inst = null;
+let running = false; // 認識の仕組みが動いている(end がまだ来ていない)
+let queued = null; // 前の回の終わりを待ってから始める入力欄
+const getInst = () => {
+  if (!inst) {
+    inst = new SR();
+    inst.lang = 'ja-JP';
+    inst.interimResults = true;
+    inst.continuous = true;
+  }
+  return inst;
+};
+
 // 利用者の操作(クリック)の中から同期的に呼ぶこと。iPhoneはそうしないと開始できない
 export function start(textarea) {
   if (!SR) return false;
-  vlog(`start 入力欄=${textarea.id} キーボード=${document.activeElement?.matches?.('textarea, input') ? 'あり' : 'なし'} 前の認識=${rec ? 'あり' : 'なし'}`);
+  vlog(`start 入力欄=${textarea.id} キーボード=${document.activeElement?.matches?.('textarea, input') ? 'あり' : 'なし'} 前の認識=${rec ? 'あり' : 'なし'} 動作中=${running ? 'はい' : 'いいえ'}`);
   if (rec) stopNow();
   // キーボードで入力した直後(キーボードが出たまま)に始めると、iPhoneでは声が文字にならなくなることがある。
   // 先にキーボードを閉じてから始める
   if (document.activeElement instanceof HTMLElement && document.activeElement.matches('textarea, input')) document.activeElement.blur();
   target = textarea;
-  const r = new SR();
-  r.lang = 'ja-JP';
-  r.interimResults = true;
-  r.continuous = true;
+  const r = getInst();
   baseText = textarea.value; // 止めた後にもう一度押したら、既存の文の続きに足す
   consumed = 0;
   lastFull = '';
   const session = { gotResult: false, startedAt: Date.now() };
   current = session;
+  const mine = () => current === session; // 前の回の合図が遅れて届いても混ぜない
+  let heard = false;
+  let soundTimer = null;
+  let watchdog = null;
   r.onresult = (ev) => {
+    if (!mine()) return;
     if (!session.gotResult) vlog('result(最初の文字)');
     heard = true;
     session.gotResult = true;
     clearTimeout(soundTimer);
-    let text = '';
     let full = '';
     for (let i = 0; i < ev.results.length; i++) full += ev.results[i][0].transcript;
     lastFull = full;
-    text = full.slice(consumed);
-    textarea.value = baseText + commands(tidy(text));
+    textarea.value = baseText + commands(tidy(full.slice(consumed)));
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
   };
   r.onerror = (ev) => {
     vlog(`error ${ev.error}`);
-    if (ev.error === 'aborted') return;
+    if (!mine() || ev.error === 'aborted') return;
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
   };
   r.onend = () => {
+    running = false;
     vlog(`end 文字=${session.gotResult ? 'あり' : 'なし'}`);
     clearTimeout(watchdog);
     clearTimeout(soundTimer);
-    if (rec === r) {
+    textarea.removeEventListener('input', onType);
+    if (mine() && rec === r) {
       rec = null;
       notify();
     }
+    if (queued) { // 前の回が終わったので、待たせていた回を始める
+      const t = queued;
+      queued = null;
+      vlog('待たせていた開始を実行');
+      start(t);
+    }
   };
-  // 前の音声入力がiPhoneの中で終わりきらないうちに始めると、マイクは赤いのに音を拾わないことがある。
-  // 3秒たってもマイクが開かなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
-  let heard = false;
-  r.onstart = () => vlog('onstart');
+  r.onstart = () => {
+    const ms = Date.now() - session.startedAt;
+    vlog(`onstart ${ms}ms${ms < 200 ? '(速すぎる: 前の回のマイクが残っている疑い)' : ''}`);
+  };
   r.onaudiostart = () => { heard = true; vlog('audiostart'); };
   r.onsoundstart = () => vlog('soundstart');
   r.onsoundend = () => vlog('soundend');
   r.onspeechend = () => vlog('speechend');
   r.onaudioend = () => vlog('audioend');
   r.onnomatch = () => vlog('nomatch');
-  // 声を拾ったのに文字が5秒たっても出てこないときも、止めて知らせる
-  let soundTimer = null;
-  r.onspeechstart = () => { // 物音(soundstart)では数えず、声(speechstart)を拾ったときだけ見張る
+  // 声を拾ったのに文字が5秒たっても出てこないときは、止めて知らせる(物音では数えず、声のときだけ)
+  r.onspeechstart = () => {
     vlog('speechstart');
     heard = true;
-    if (session.gotResult || soundTimer) return;
+    if (!mine() || session.gotResult || soundTimer) return;
     soundTimer = setTimeout(() => {
-      if (session.gotResult || rec !== r) return;
+      if (session.gotResult || rec !== r || !mine()) return;
       vlog('見張り: 声を拾って5秒文字なし');
       rec = null;
       try { r.abort(); } catch { /* 既に止まっている */ }
@@ -121,8 +144,9 @@ export function start(textarea) {
       errorHandler(NO_TEXT);
     }, 5000);
   };
-  const watchdog = setTimeout(() => {
-    if (heard || rec !== r) return;
+  // 3秒たってもマイクが開かなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
+  watchdog = setTimeout(() => {
+    if (heard || rec !== r || !mine()) return;
     vlog('見張り: 3秒マイク開かず');
     rec = null;
     try { r.abort(); } catch { /* 既に止まっている */ }
@@ -131,17 +155,27 @@ export function start(textarea) {
   }, 3000);
   // 音声入力中に手で入力・修正したら(キーボードでの入力は isTrusted が true)、それを土台にして続きを足す
   const onType = (ev) => {
-    if (!ev.isTrusted || rec !== r) return;
+    if (!ev.isTrusted || rec !== r || !mine()) return;
     baseText = textarea.value;
     consumed = lastFull.length;
     vlog('音声入力中に手で入力');
   };
   textarea.addEventListener('input', onType);
-  r.addEventListener('end', () => textarea.removeEventListener('input', onType), { once: true });
   rec = r;
+  if (running) {
+    // 前の回がまだ終わっていない。止めて、終わったところで始める
+    vlog('前の回が動作中なので終わりを待つ');
+    queued = textarea;
+    current = null;
+    try { r.abort(); } catch { /* 既に止まっている */ }
+    notify();
+    return true;
+  }
   try {
     r.start();
+    running = true;
   } catch (e) {
+    vlog(`start失敗 ${e.name} ${e.message}`);
     rec = null;
     errorHandler(`音声認識を開始できません(${e.message})`);
   }
