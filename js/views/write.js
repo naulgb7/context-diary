@@ -121,13 +121,6 @@ async function save() {
   }
 }
 
-// 音声入力の立て直し(画面の読み込み直し)の前後で使う
-export const editingEntry = () => editingId;
-export async function resumeEdit(id, text) {
-  await startEdit(id);
-  if (editingId === id) $('#writeText').value = text;
-}
-
 async function startEdit(id) {
   const e = await store.getEntry(id);
   if (!e) return;

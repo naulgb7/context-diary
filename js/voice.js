@@ -22,9 +22,6 @@ let errorHandler = () => {};
 
 export const onVoiceState = (fn) => listeners.add(fn);
 export const onVoiceError = (fn) => { errorHandler = fn; };
-// マイクをつかめなくなったときの立て直し役。立て直しを引き受けたら true を返す
-let stuckHandler = () => false;
-export const onVoiceStuck = (fn) => { stuckHandler = fn; };
 export const isListening = () => !!rec;
 export const currentTarget = () => target;
 const notify = () => listeners.forEach((fn) => fn(!!rec, target));
@@ -45,7 +42,9 @@ export const tidy = (s) => s.replace(/(?<=[^\x00-\x7F]) +| +(?=[^\x00-\x7F])/g, 
 const commands = (s) => s.replace(/\s*(改行|かいぎょう|開業)[。、]?\s*/g, '\n');
 
 let current = null; // 今の音声入力で文字が出たか
-const NO_TEXT = '声が文字になりませんでした。もう一度押しても入らないときは、アプリを閉じて開き直してください';
+// 2026-10-10 の記録では、マイクは開くのに声が届かない状態が30秒〜1分続き、画面の読み込み直しでは直らず、時間がたつと直った。
+// アプリの中では直せないので、知らせて待ってもらう
+const NO_TEXT = 'マイクに声が届いていないようです。スマートグラスやイヤホンなどのBluetooth機器をつないでいるときは外すか、30秒ほど待ってからもう一度押してください';
 
 // iPhoneは話した内容を1つの結果に足し続けて返すことが多いので、結果の数ではなく文字数で区切る。
 // consumed = 改行ボタンや手入力の時点までに入力欄へ確定させた、認識結果の文字数
@@ -86,8 +85,6 @@ export function start(textarea) {
   r.onerror = (ev) => {
     vlog(`error ${ev.error}`);
     if (ev.error === 'aborted') return;
-    // iPhoneは音声入力を何度か使うと、このページの中だけマイクをつかめなくなることがある(開き直すと直る)
-    if (ev.error === 'audio-capture' && stuckHandler()) return;
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
   };
   r.onend = () => {
@@ -100,12 +97,12 @@ export function start(textarea) {
     }
   };
   // 前の音声入力がiPhoneの中で終わりきらないうちに始めると、マイクは赤いのに音を拾わないことがある。
-  // 3秒たってもマイクが音を拾い始めなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
+  // 3秒たってもマイクが開かなければ(黙っているだけなら止めない)、赤いままにせず止めて知らせる
   let heard = false;
   r.onstart = () => vlog('onstart');
   r.onaudiostart = () => { heard = true; vlog('audiostart'); };
   r.onsoundstart = () => vlog('soundstart');
-  // マイクは開いていて声も拾っているのに、文字が5秒たっても出てこないときも、同じく詰まっているとみて立て直す
+  // 声を拾ったのに文字が5秒たっても出てこないときも、止めて知らせる
   let soundTimer = null;
   r.onspeechstart = () => { // 物音(soundstart)では数えず、声(speechstart)を拾ったときだけ見張る
     vlog('speechstart');
@@ -117,7 +114,6 @@ export function start(textarea) {
       rec = null;
       try { r.abort(); } catch { /* 既に止まっている */ }
       notify();
-      if (stuckHandler()) return;
       errorHandler(NO_TEXT);
     }, 5000);
   };
@@ -127,7 +123,6 @@ export function start(textarea) {
     rec = null;
     try { r.abort(); } catch { /* 既に止まっている */ }
     notify();
-    if (stuckHandler()) return; // マイクをつかめなくなっている状態とみて立て直す
     errorHandler('音声入力が始まりませんでした。もう一度マイクを押してください');
   }, 3000);
   // 音声入力中に手で入力・修正したら(キーボードでの入力は isTrusted が true)、それを土台にして続きを足す
@@ -187,11 +182,11 @@ export function newline(textarea) {
 
 export function toggle(textarea) {
   if (rec && target === textarea) {
-    // 赤いまま文字が1つも出ないので止めた、という場合は詰まっているとみて立て直す(書きかけは残る)
+    // 赤いまま文字が1つも出ないので止めた、という場合は、声が届いていないことを知らせる
     const s = current;
     vlog(`toggle停止 文字=${s?.gotResult ? 'あり' : 'なし'} 経過=${s ? Date.now() - s.startedAt : '-'}ms`);
     stop().then(() => {
-      if (s && !s.gotResult && Date.now() - s.startedAt > 2500 && !stuckHandler()) errorHandler(NO_TEXT);
+      if (s && !s.gotResult && Date.now() - s.startedAt > 2500) errorHandler(NO_TEXT);
     });
     return;
   }
