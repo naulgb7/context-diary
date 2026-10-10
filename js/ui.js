@@ -1,5 +1,6 @@
 // 画面の共通部品: お知らせ表示・アイコン・画面切り替え
 import { $, $$ } from './util.js';
+import { vlog } from './voice.js';
 
 export const ICONS = {
   mic: '<svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>',
@@ -33,6 +34,7 @@ export function show(name, { fromBack = false } = {}) {
     if (history.length > 10) history.shift();
   }
   if (name === 'write') history.length = 0; // 記入画面が起点。そこからは戻る先がない
+  vlog(`画面 ${currentView}→${name}`);
   currentView = name;
   for (const v of $$('.view')) v.hidden = v.id !== `view-${name}`;
   const tab = name === 'summary' ? 'write' : name;

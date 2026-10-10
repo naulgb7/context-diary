@@ -176,6 +176,7 @@ async function main() {
   window.addEventListener('online', () => requestSync());
   window.addEventListener('offline', () => refreshPending().then(() => requestSync()));
   document.addEventListener('visibilitychange', () => {
+    voice.vlog(`表示 ${document.visibilityState}`);
     if (document.visibilityState === 'visible') {
       requestSync();
       if (viewName() === 'write') refreshWrite();

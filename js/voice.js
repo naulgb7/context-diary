@@ -102,6 +102,10 @@ export function start(textarea) {
   r.onstart = () => vlog('onstart');
   r.onaudiostart = () => { heard = true; vlog('audiostart'); };
   r.onsoundstart = () => vlog('soundstart');
+  r.onsoundend = () => vlog('soundend');
+  r.onspeechend = () => vlog('speechend');
+  r.onaudioend = () => vlog('audioend');
+  r.onnomatch = () => vlog('nomatch');
   // 声を拾ったのに文字が5秒たっても出てこないときも、止めて知らせる
   let soundTimer = null;
   r.onspeechstart = () => { // 物音(soundstart)では数えず、声(speechstart)を拾ったときだけ見張る
@@ -155,6 +159,7 @@ function stopNow() {
 // 止めて、最後の言葉が入力欄に届くのを待つ
 export function stop() {
   if (!rec) return Promise.resolve();
+  vlog('stop(保存・画面切替など)');
   const r = rec;
   return new Promise((resolve) => {
     const done = () => resolve();
