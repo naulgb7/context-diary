@@ -47,8 +47,10 @@ const commands = (s) => s.replace(/\s*(改行|かいぎょう|開業)[。、]?\s
 let current = null; // 今の音声入力で文字が出たか
 const NO_TEXT = '声が文字になりませんでした。もう一度押しても入らないときは、アプリを閉じて開き直してください';
 
-let consumed = 0; // 改行ボタンを押した時点までに入力欄へ確定させた認識結果の数
-let lastLen = 0;
+// iPhoneは話した内容を1つの結果に足し続けて返すことが多いので、結果の数ではなく文字数で区切る。
+// consumed = 改行ボタンや手入力の時点までに入力欄へ確定させた、認識結果の文字数
+let consumed = 0;
+let lastFull = '';
 
 // 利用者の操作(クリック)の中から同期的に呼ぶこと。iPhoneはそうしないと開始できない
 export function start(textarea) {
@@ -65,7 +67,7 @@ export function start(textarea) {
   r.continuous = true;
   baseText = textarea.value; // 止めた後にもう一度押したら、既存の文の続きに足す
   consumed = 0;
-  lastLen = 0;
+  lastFull = '';
   const session = { gotResult: false, startedAt: Date.now() };
   current = session;
   r.onresult = (ev) => {
@@ -74,8 +76,10 @@ export function start(textarea) {
     session.gotResult = true;
     clearTimeout(soundTimer);
     let text = '';
-    for (let i = consumed; i < ev.results.length; i++) text += ev.results[i][0].transcript;
-    lastLen = ev.results.length;
+    let full = '';
+    for (let i = 0; i < ev.results.length; i++) full += ev.results[i][0].transcript;
+    lastFull = full;
+    text = full.slice(consumed);
     textarea.value = baseText + commands(tidy(text));
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
   };
@@ -126,6 +130,15 @@ export function start(textarea) {
     if (stuckHandler()) return; // マイクをつかめなくなっている状態とみて立て直す
     errorHandler('音声入力が始まりませんでした。もう一度マイクを押してください');
   }, 3000);
+  // 音声入力中に手で入力・修正したら(キーボードでの入力は isTrusted が true)、それを土台にして続きを足す
+  const onType = (ev) => {
+    if (!ev.isTrusted || rec !== r) return;
+    baseText = textarea.value;
+    consumed = lastFull.length;
+    vlog('音声入力中に手で入力');
+  };
+  textarea.addEventListener('input', onType);
+  r.addEventListener('end', () => textarea.removeEventListener('input', onType), { once: true });
   rec = r;
   try {
     r.start();
@@ -162,7 +175,7 @@ export function stop() {
 export function newline(textarea) {
   if (rec && target === textarea) {
     baseText = textarea.value.replace(/[ \t]+$/, '') + '\n';
-    consumed = lastLen;
+    consumed = lastFull.length;
     textarea.value = baseText;
   } else if (document.activeElement === textarea) {
     textarea.setRangeText('\n', textarea.selectionStart, textarea.selectionEnd, 'end');
