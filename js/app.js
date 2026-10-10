@@ -177,6 +177,8 @@ async function main() {
   window.addEventListener('offline', () => refreshPending().then(() => requestSync()));
   document.addEventListener('visibilitychange', () => {
     voice.vlog(`表示 ${document.visibilityState}`);
+    // 一時停止方式で動かし続けている音声認識は、アプリが裏に回ったら本当に止めてマイクを手放す
+    if (document.visibilityState === 'hidden') voice.hardStop();
     if (document.visibilityState === 'visible') {
       requestSync();
       if (viewName() === 'write') refreshWrite();
