@@ -1,5 +1,5 @@
 // 記入画面: 問い・入力欄・マイク・保存ボタン・今日のメモ
-import { $, esc, diaryDay, newId, dateFromId, hm, toMinutes } from '../util.js';
+import { $, esc, diaryDay, newId, dateFromId, hm } from '../util.js';
 import * as store from '../store.js';
 import * as voice from '../voice.js';
 import { settings } from '../settings.js';
@@ -39,13 +39,9 @@ function renderQuestion() {
   $('#qtext').textContent = question ? question.question : '';
 }
 
-// まとめ開始時刻を過ぎたら(1日の切替時刻までは)まとめのボタンを出す
+// まとめのボタンは時刻に関係なくいつでも出す(2026-10-11 オーナー決定。それまでは21時以降だけ出していた)
 async function renderSummaryBar() {
-  const s = settings();
-  const now = new Date();
-  const sinceStart = (now.getHours() * 60 + now.getMinutes() - toMinutes(s.dayBoundary) + 1440) % 1440;
-  const startAt = (toMinutes(s.summaryStartTime) - toMinutes(s.dayBoundary) + 1440) % 1440;
-  const visible = s.summaryQuestions.length > 0 && sinceStart >= startAt;
+  const visible = settings().summaryQuestions.length > 0;
   $('#summaryBar').hidden = !visible;
   if (!visible) return;
   const sm = await store.getSummary(today());

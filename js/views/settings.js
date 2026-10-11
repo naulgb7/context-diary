@@ -38,7 +38,6 @@ function render() {
 
     <div class="set">
       <h2>1日のまとめ</h2>
-      <div class="row"><span>ボタンを出す時刻</span><input type="time" id="setSumStart" value="${esc(s.summaryStartTime)}"></div>
       <p>まとめの問い(<span id="sumCount"></span>/${MAX_SUMMARY_QUESTIONS})。上から順に出ます。</p>
       <div id="sumList"></div>
       <button type="button" class="sub" id="sumAdd">問いを追加</button>
@@ -90,7 +89,6 @@ function render() {
     try { await navigator.clipboard.writeText(text); toast('音声入力の記録をコピーしました'); } catch { toast('コピーできませんでした', 5000); }
   });
   $('#vlogClear').addEventListener('click', () => { try { localStorage.removeItem('voiceLog'); } catch { /* 何もしない */ } toast('記録を消しました'); });
-  $('#setSumStart').addEventListener('change', (e) => updateSettings({ summaryStartTime: e.target.value || '21:00' }));
   $('#setBoundary').addEventListener('change', (e) => updateSettings({ dayBoundary: e.target.value || '04:00' }).then(requestSync));
   $('#sumAdd').addEventListener('click', () => {
     if (summaryQs.length >= MAX_SUMMARY_QUESTIONS) return;
