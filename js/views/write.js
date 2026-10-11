@@ -1,27 +1,24 @@
-// 記入画面: 問い・入力欄・マイク・保存ボタン・今日のメモ
+// 記入画面: 話すきっかけ(問い)・入力欄・マイク・保存ボタン・今日の出来事
+// 2026-10-11 オーナー決定: 主役は「今日の出来事」。保存するたびに時刻付きで追記し、画面では時刻順に続けて見せる。
+// 問いは答えるものではなく、話すきっかけのヒントとして出すだけ(日記には残さない)。1日のまとめはやめた
 import { $, esc, diaryDay, newId, dateFromId, hm } from '../util.js';
 import * as store from '../store.js';
 import * as voice from '../voice.js';
 import { settings } from '../settings.js';
-import { currentQuestion, nextQuestion, logQuestion, questionLogRecord } from '../questions.js';
+import { currentQuestion, nextQuestion } from '../questions.js';
 import { requestSync, refreshPending } from '../sync.js';
 import { toast, onShow } from '../ui.js';
-import { openSummary } from './summary.js';
 
-let question = null; // 今出している問い
-let dropped = false; // ×で問いを外したか
+let question = null; // 今出しているヒント
 let editingId = null;
 
 const today = () => diaryDay(new Date(), settings().dayBoundary);
 
 export function initWrite() {
-  $('#qdrop').addEventListener('click', () => { dropped = true; renderQuestion(); });
-  $('#qrestore').addEventListener('click', () => { dropped = false; renderQuestion(); });
   $('#writeSave').addEventListener('click', save);
   $('#writeCancel').addEventListener('click', cancelEdit);
-  $('#summaryOpen').addEventListener('click', () => openSummary());
+  $('#qnext').addEventListener('click', async () => { question = await nextQuestion(); renderQuestion(); });
   onShow((name) => { if (name === 'write') refresh(); });
-  setInterval(() => { if (!document.hidden) renderSummaryBar(); }, 60000);
 }
 
 export async function refresh() {
@@ -29,28 +26,17 @@ export async function refresh() {
   if (question && question.day !== today()) question = await nextQuestion();
   renderQuestion();
   await renderToday();
-  await renderSummaryBar();
 }
 
 function renderQuestion() {
-  const editing = !!editingId;
-  $('#qcard').hidden = editing || !question || dropped;
-  $('#qfree').hidden = editing || !question || !dropped;
+  $('#qcard').hidden = !!editingId || !question;
   $('#qtext').textContent = question ? question.question : '';
 }
 
-// まとめのボタンは時刻に関係なくいつでも出す(2026-10-11 オーナー決定。それまでは21時以降だけ出していた)
-async function renderSummaryBar() {
-  const visible = settings().summaryQuestions.length > 0;
-  $('#summaryBar').hidden = !visible;
-  if (!visible) return;
-  const sm = await store.getSummary(today());
-  $('#summaryOpen').textContent = !sm ? '1日のまとめを書く' : sm.status === 'done' ? '1日のまとめを直す' : '1日のまとめの続きを書く';
-}
-
+// 今日の出来事: 古い順に上から並べ、新しい追記が下に続く
 async function renderToday() {
-  const day = today();
-  const list = (await store.entriesOfDay(day)).filter((e) => !e.deleted).sort((a, b) => b.id.localeCompare(a.id));
+  const list = (await store.entriesOfDay(today())).filter((e) => !e.deleted)
+    .sort((a, b) => a.id.slice(0, 15).localeCompare(b.id.slice(0, 15)) || (a.updatedAt < b.updatedAt ? -1 : 1)); // 同じ秒の追記は保存順
   const box = $('#todayList');
   if (!list.length) {
     box.innerHTML = '<div class="empty">今日はまだ何もありません</div>';
@@ -61,7 +47,6 @@ async function renderToday() {
     return `<div class="entry${e.id === editingId ? ' editing' : ''}" data-id="${esc(e.id)}">
       <div class="meta"><span>${d ? hm(d) : ''}${e.dirty ? ' (未送信)' : ''}</span>
         <span class="acts"><button class="act-edit" data-act="edit" type="button">修正</button><button class="act-del" data-act="del" type="button">削除</button></span></div>
-      ${e.question ? `<div class="q">問い: ${esc(e.question)}</div>` : ''}
       <div class="body">${esc(e.text)}</div></div>`;
   }).join('');
   for (const b of box.querySelectorAll('button[data-act]')) {
@@ -88,23 +73,18 @@ async function save() {
     if (editingId) {
       const e = await store.getEntry(editingId);
       if (!e || e.day !== today()) {
-        toast('直せるのはその日のメモだけです');
+        toast('直せるのはその日の出来事だけです');
       } else {
         await store.putEntry({ ...e, text, updatedAt: nowIso, dirty: true });
         toast('保存しました');
       }
       editingId = null;
       $('#writeCancel').hidden = true;
-      btn.textContent = '保存';
     } else {
       const now = new Date();
-      const id = newId(now);
-      const q = question && !dropped ? question : null;
-      await store.putEntry({ id, day: diaryDay(now, settings().dayBoundary), text, question: q ? q.question : null, updatedAt: nowIso, deleted: false, dirty: true });
-      if (question) await logQuestion(questionLogRecord(question, dropped ? 'skipped' : 'answered', id, now));
-      dropped = false;
+      await store.putEntry({ id: newId(now), day: diaryDay(now, settings().dayBoundary), text, question: null, updatedAt: nowIso, deleted: false, dirty: true });
       question = await nextQuestion();
-      toast('保存しました');
+      toast('今日の出来事に追記しました');
     }
     ta.value = '';
     ta.updateHint?.();
@@ -124,7 +104,6 @@ async function startEdit(id) {
   editingId = id;
   $('#writeText').value = e.text;
   $('#writeText').updateHint?.();
-  $('#writeSave').textContent = '保存';
   $('#writeCancel').hidden = false;
   renderQuestion();
   await renderToday();
@@ -136,7 +115,6 @@ async function cancelEdit() {
   editingId = null;
   $('#writeText').value = '';
   $('#writeText').updateHint?.();
-  $('#writeSave').textContent = '保存';
   $('#writeCancel').hidden = true;
   renderQuestion();
   await renderToday();
@@ -146,10 +124,10 @@ async function remove(id) {
   const e = await store.getEntry(id);
   if (!e) return;
   if (e.day !== today()) {
-    toast('消せるのはその日のメモだけです');
+    toast('消せるのはその日の出来事だけです');
     return;
   }
-  if (!confirm('このメモを消しますか?')) return;
+  if (!confirm('この部分を消しますか?')) return;
   await store.putEntry({ ...e, deleted: true, dirty: true, updatedAt: new Date().toISOString() });
   if (editingId === id) await cancelEdit();
   await renderToday();

@@ -72,7 +72,7 @@ async function renderDay(day) {
     for (const [q, a] of answered) html += `<h3>${esc(q)}</h3><div class="ans">${esc(a)}</div>`;
   }
   if (entries.length) {
-    html += '<h2>メモ</h2>';
+    html += '<h2>出来事</h2>';
     for (const e of entries) {
       const d = dateFromId(e.id);
       const time = d ? (ymd(d) === day ? hm(d) : `${d.getMonth() + 1}/${d.getDate()} ${hm(d)}`) : '';

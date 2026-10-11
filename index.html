@@ -25,18 +25,10 @@
   </div>
   <!-- 記入 -->
   <section id="view-write" class="view">
-    <div id="summaryBar" hidden>
-      <button id="summaryOpen" class="sub wide" type="button">1日のまとめを書く</button>
-    </div>
-
     <div id="qcard" class="qcard">
-      <div class="qlabel">問い</div>
+      <div class="qlabel">話すきっかけ(答えなくてかまいません)</div>
       <div id="qtext" class="qtext"></div>
-      <button id="qdrop" class="qdrop" type="button" aria-label="問いを外して自由に書く">×</button>
-    </div>
-    <div id="qfree" class="qfree" hidden>
-      問いなし(自由記入)
-      <button id="qrestore" class="link" type="button">問いを出す</button>
+      <button id="qnext" class="qdrop" type="button" aria-label="別のきっかけを出す">↻</button>
     </div>
 
     <textarea id="writeText" placeholder="マイクを押して話すか、ここに書く"></textarea>
@@ -53,32 +45,8 @@
       </div>
     </div>
 
-    <h2 class="sec">今日のメモ</h2>
+    <h2 class="sec">今日の出来事</h2>
     <div id="todayList" class="entries"></div>
-  </section>
-
-  <!-- 1日のまとめ -->
-  <section id="view-summary" class="view" hidden>
-    <div class="sumhead">
-      <span class="sumtitle">1日のまとめ</span>
-      <span id="sumPos" class="sumpos"></span>
-    </div>
-    <div class="qcard"><div class="qlabel">1日のまとめ</div><div id="sumQ" class="qtext"></div></div>
-    <textarea id="sumText" placeholder="マイクを押して話すか、ここに書く"></textarea>
-    <div class="nlhint" data-hint-for="sumText" hidden>↵ 改行しました。次の言葉は新しい行から入ります</div>
-    <div class="ops">
-      <div class="micwrap">
-        <button class="mic" type="button" data-mic-for="sumText" aria-label="音声入力"></button>
-        <span class="micstate" data-state-for="sumText">停止中</span>
-      </div>
-      <div></div>
-      <div class="opsright"><button class="sub nl" type="button" data-nl-for="sumText">改行</button></div>
-    </div>
-    <div class="sumnav">
-      <button id="sumPrev" class="sub" type="button">戻る</button>
-      <button id="sumNext" type="button">次へ</button>
-    </div>
-    <p class="hint">答えたくない問いは、空欄のまま「次へ」で飛ばせます。後から戻って答えられます。</p>
   </section>
 
   <!-- 閲覧 -->

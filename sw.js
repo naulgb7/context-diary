@@ -1,11 +1,11 @@
 // オフラインでも開けるようにアプリ本体を端末に保存する。
 // 電波があるときは常に最新を取りに行き(3秒で諦めて保存版を使う)、更新がすぐ反映されるようにする
-const CACHE = 'context-diary-v31';
+const CACHE = 'context-diary-v32';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'config.js', 'css/app.css',
   'js/app.js', 'js/util.js', 'js/store.js', 'js/settings.js', 'js/auth.js', 'js/drive.js', 'js/markdown.js',
   'js/sync.js', 'js/questions.js', 'js/gemini.js', 'js/voice.js', 'js/ui.js', 'js/push.js',
-  'js/views/write.js', 'js/views/summary.js', 'js/views/browse.js', 'js/views/settings.js',
+  'js/views/write.js', 'js/views/browse.js', 'js/views/settings.js',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 
@@ -36,22 +36,19 @@ self.addEventListener('push', (e) => {
     body: data.body,
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
-    tag: 'summary-reminder',
+    tag: 'daily-reminder',
     renotify: true,
   }));
 });
 
-// 通知を押したら、日記アプリを1日のまとめの画面で開く(開いていれば前に出してまとめの画面へ)
+// 通知を押したら、日記アプリを前に出す。開いていなければ開く(ホーム画面のアプリとして開く)
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil((async () => {
     const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const app = list.find((c) => c.url.startsWith(self.registration.scope));
-    if (app) {
-      app.postMessage({ type: 'open-summary' });
-      return app.focus();
-    }
-    return self.clients.openWindow(self.registration.scope + '#summary');
+    if (app) return app.focus();
+    return self.clients.openWindow(self.registration.scope);
   })());
 });
 

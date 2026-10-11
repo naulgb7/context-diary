@@ -1,6 +1,6 @@
 // 設定画面
 import { $, esc } from '../util.js';
-import { settings, updateSettings, onSettingsChange, MAX_SUMMARY_QUESTIONS, getGeminiKey, setGeminiKey, getGeminiModel } from '../settings.js';
+import { settings, updateSettings, onSettingsChange, getGeminiKey, setGeminiKey, getGeminiModel } from '../settings.js';
 import { isSignedIn, signIn, signOut, onAuthChange } from '../auth.js';
 import { requestSync, onSyncState } from '../sync.js';
 import { generateQuestion, resetModel } from '../gemini.js';
@@ -11,7 +11,6 @@ import { voiceLog } from '../voice.js';
 import { APP_VERSION } from '../../config.js';
 
 // 画面で編集中の一覧(空欄の行も残しておき、保存するときに空欄を除く)
-let summaryQs = [];
 let randomItems = [];
 let syncInfo = { phase: 'idle', pending: 0 };
 
@@ -29,7 +28,6 @@ export function initSettings() {
 
 function render() {
   const s = settings();
-  summaryQs = [...s.summaryQuestions];
   randomItems = s.randomItems.map((i) => ({ ...i }));
   $('#view-settings').innerHTML = `
     <div class="set" id="setAccount"></div>
@@ -37,14 +35,7 @@ function render() {
     <div class="set" id="setPush"></div>
 
     <div class="set">
-      <h2>1日のまとめ</h2>
-      <p>まとめの問い(<span id="sumCount"></span>/${MAX_SUMMARY_QUESTIONS})。上から順に出ます。</p>
-      <div id="sumList"></div>
-      <button type="button" class="sub" id="sumAdd">問いを追加</button>
-    </div>
-
-    <div class="set">
-      <h2>ランダムの問い(随時の記入)</h2>
+      <h2>話すきっかけ(記入画面のヒント)</h2>
       <label class="radio"><input type="radio" name="rmode" value="list" ${s.randomMode === 'list' ? 'checked' : ''}>登録した問い集から抽選する</label>
       <label class="radio"><input type="radio" name="rmode" value="ai" ${s.randomMode === 'ai' ? 'checked' : ''}>AIが作る(項目をテーマとして言い換える)</label>
       <p class="note">チェックを外した項目は出ません。直近に出た項目は、一巡するまで出しません。</p>
@@ -80,7 +71,6 @@ function render() {
   `;
   renderAccount();
   renderPush();
-  renderSumList();
   renderRndList();
   $('#gemModel').textContent = getGeminiModel() ? `使うモデル: ${getGeminiModel().replace('models/', '')}` : '';
 
@@ -90,11 +80,6 @@ function render() {
   });
   $('#vlogClear').addEventListener('click', () => { try { localStorage.removeItem('voiceLog'); } catch { /* 何もしない */ } toast('記録を消しました'); });
   $('#setBoundary').addEventListener('change', (e) => updateSettings({ dayBoundary: e.target.value || '04:00' }).then(requestSync));
-  $('#sumAdd').addEventListener('click', () => {
-    if (summaryQs.length >= MAX_SUMMARY_QUESTIONS) return;
-    summaryQs.push('');
-    renderSumList(true);
-  });
   $('#rndAdd').addEventListener('click', () => {
     randomItems.push({ text: '', enabled: true });
     renderRndList(true);
@@ -151,7 +136,7 @@ function renderAccount() {
 async function renderPush() {
   const box = $('#setPush');
   if (!box) return;
-  const head = '<h2>まとめの通知</h2><p class="note">21時と22時に、1日のまとめが付いていなければ通知します(判定と送信はPCが行うので、PCが起動している必要があります)。</p>';
+  const head = '<h2>夜の通知</h2><p class="note">21時と22時に、その日の出来事がまだ1つもなければ通知します(判定と送信はPCが行うので、PCが起動している必要があります)。</p>';
   if (!push.supported) {
     box.innerHTML = head + `<p>${/iPhone|iPad|iPod/.test(navigator.userAgent) && !push.standalone() ? 'ホーム画面の「日記」アイコンから開いたときに設定できます。' : 'この端末・ブラウザは通知に対応していません。'}</p>`;
     return;
@@ -189,39 +174,6 @@ async function renderPush() {
     }
     renderPush();
   });
-}
-
-function saveSummaryQs() {
-  return updateSettings({ summaryQuestions: summaryQs.map((q) => q.trim()).filter(Boolean) });
-}
-
-function renderSumList(focusLast = false) {
-  const box = $('#sumList');
-  $('#sumCount').textContent = summaryQs.length;
-  $('#sumAdd').disabled = summaryQs.length >= MAX_SUMMARY_QUESTIONS;
-  box.innerHTML = summaryQs.map((q, i) => `
-    <div class="row" data-i="${i}">
-      <input type="text" value="${esc(q)}" placeholder="問いを入力">
-      <button type="button" class="iconbtn" data-act="up" aria-label="上へ" ${i === 0 ? 'disabled' : ''}>↑</button>
-      <button type="button" class="iconbtn" data-act="down" aria-label="下へ" ${i === summaryQs.length - 1 ? 'disabled' : ''}>↓</button>
-      <button type="button" class="iconbtn" data-act="del" aria-label="削除">×</button>
-    </div>`).join('');
-  for (const row of box.querySelectorAll('.row')) {
-    const i = Number(row.dataset.i);
-    const input = row.querySelector('input');
-    input.addEventListener('input', () => { summaryQs[i] = input.value; });
-    input.addEventListener('change', saveSummaryQs);
-    for (const b of row.querySelectorAll('button')) {
-      b.addEventListener('click', () => {
-        if (b.dataset.act === 'up') [summaryQs[i - 1], summaryQs[i]] = [summaryQs[i], summaryQs[i - 1]];
-        if (b.dataset.act === 'down') [summaryQs[i + 1], summaryQs[i]] = [summaryQs[i], summaryQs[i + 1]];
-        if (b.dataset.act === 'del') summaryQs.splice(i, 1);
-        renderSumList();
-        saveSummaryQs().then(requestSync);
-      });
-    }
-  }
-  if (focusLast) box.querySelector('.row:last-child input')?.focus();
 }
 
 function saveRandomItems() {

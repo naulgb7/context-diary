@@ -37,8 +37,7 @@ export function show(name, { fromBack = false } = {}) {
   vlog(`画面 ${currentView}→${name}`);
   currentView = name;
   for (const v of $$('.view')) v.hidden = v.id !== `view-${name}`;
-  const tab = name === 'summary' ? 'write' : name;
-  for (const b of $$('.tabs button')) b.classList.toggle('active', b.dataset.tab === tab);
+  for (const b of $$('.tabs button')) b.classList.toggle('active', b.dataset.tab === name);
   $('#backBtn').disabled = name === 'write'; // 記入画面が起点なので戻る先がない
   window.scrollTo(0, 0);
   showListeners.forEach((fn) => fn(name));

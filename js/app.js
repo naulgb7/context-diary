@@ -6,7 +6,6 @@ import { requestSync, onSyncState, refreshPending } from './sync.js';
 import * as voice from './voice.js';
 import { ICONS, toast, show, back, viewName } from './ui.js';
 import { initWrite, refresh as refreshWrite } from './views/write.js';
-import { initSummary, openSummary } from './views/summary.js';
 import { initBrowse } from './views/browse.js';
 import { initSettings } from './views/settings.js';
 
@@ -46,7 +45,7 @@ function setupVoice() {
   // 入力欄は中身に合わせて高さを伸ばす(入力欄の中だけのスクロールはiPhoneで動かしにくいため、画面ごと送る)。
   // 音声入力や改行ボタンで文が増えたときは、文の最後とマイク・記入ボタンが見える位置まで画面を送る。
   // 末尾の改行は見えないので、改行したことを入力欄の下に表示する
-  for (const ta of [$('#writeText'), $('#sumText')]) {
+  for (const ta of [$('#writeText')]) {
     const hint = $(`.nlhint[data-hint-for="${ta.id}"]`);
     const ops = ta.parentElement.querySelector('.ops');
     // キーボードで直している間は、入力欄をキーボードの上に収まる高さにして、欄の中でスクロールさせる。
@@ -110,15 +109,14 @@ function setupVoice() {
 }
 
 function setupTabs() {
-  // 記入タブ: 押すとすぐ音声入力。記入画面(まとめ画面)にいるときは、その入力欄で開始/停止
+  // 記入タブ: 押すとすぐ音声入力。記入画面にいるときは開始/一時停止
   $('#tabWrite').addEventListener('click', () => {
     const name = viewName();
     if (!voice.available) {
-      if (name !== 'summary') show('write');
-      $(name === 'summary' ? '#sumText' : '#writeText').focus();
+      show('write');
+      $('#writeText').focus();
       return;
     }
-    if (name === 'summary') return voice.toggle($('#sumText'));
     if (name === 'write') return voice.toggle($('#writeText'));
     show('write');
     voice.start($('#writeText'));
@@ -168,7 +166,6 @@ async function main() {
   setupTabs();
   setupSyncButton();
   initWrite();
-  initSummary();
   initBrowse();
   initSettings();
   show('write');
@@ -186,17 +183,8 @@ async function main() {
   });
   requestSync().then(() => { if (viewName() === 'write') refreshWrite(); });
 
-  // まとめの通知から開いたとき(#summary 付き、または開いていたアプリへの知らせ)は、まとめの画面にする
-  if (location.hash === '#summary') {
-    history.replaceState(null, '', location.pathname);
-    openSummary();
-  }
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker', e));
-    navigator.serviceWorker.addEventListener('message', (e) => {
-      if (e.data?.type === 'open-summary') openSummary();
-    });
-  }
+  if (location.hash) history.replaceState(null, '', location.pathname); // 旧版の通知の #summary 等を消す
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker', e));
 }
 
 main().catch((e) => {
