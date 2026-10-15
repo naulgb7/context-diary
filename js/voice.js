@@ -53,6 +53,7 @@ let lastFull = '';
 // そこで、いったん始めた音声認識は止めずに動かし続け、マイクのボタンでは「文字を入れる/入れない」だけを切り替える。
 // 本当に止めるのは、アプリが裏に回ったとき(hardStop)と、iPhoneが自分で切ったときだけ
 let paused = false;
+let restarts = 0; // 自動で始め直した回数(文字が出たら0に戻す)
 const setPaused = (v) => { paused = v; notify(); };
 export const isListening = () => !!rec && !paused;
 
@@ -80,10 +81,10 @@ function resume(textarea) {
 }
 
 // 利用者の操作(クリック)の中から同期的に呼ぶこと。iPhoneはそうしないと開始できない
-export function start(textarea) {
+export function start(textarea, { auto = false } = {}) {
   if (!SR) return false;
-  // キーボードが出たまま始めると声が文字にならないことがあるので、先に閉じる
-  if (document.activeElement instanceof HTMLElement && document.activeElement.matches('textarea, input')) document.activeElement.blur();
+  // キーボードが出たまま始めると声が文字にならないことがあるので、先に閉じる(自動で始め直すときは、手入力の邪魔をしないよう閉じない)
+  if (!auto && document.activeElement instanceof HTMLElement && document.activeElement.matches('textarea, input')) document.activeElement.blur();
   if (rec) { resume(textarea); return true; } // 動き続けているので、つなぎ直すだけ
   vlog(`start 入力欄=${textarea.id}`);
   target = textarea;
@@ -101,7 +102,9 @@ export function start(textarea) {
     let full = '';
     for (let i = 0; i < ev.results.length; i++) full += ev.results[i][0].transcript;
     lastFull = full;
+    lastResultAt = Date.now();
     if (paused || rec !== r) return; // 一時停止中は捨てる(再開時に consumed で読み飛ばす)
+    restarts = 0;
     if (!session.gotResult) vlog('result(最初の文字)');
     session.gotResult = true;
     target.value = baseText + commands(tidy(full.slice(consumed)));
@@ -114,15 +117,38 @@ export function start(textarea) {
   };
   r.onend = () => {
     vlog(`end 経過=${Date.now() - session.startedAt}ms`);
-    if (rec === r) {
-      rec = null;
-      paused = false;
-      notify();
+    clearTimeout(noTextTimer);
+    if (rec !== r) return; // こちらから完全に止めた(hardStop)とき
+    const wasListening = !paused;
+    rec = null;
+    paused = false;
+    // 文字を入れている最中にブラウザが自分で音声認識を切ったときは、すぐ始め直す(PCのChromeは1〜2分で切る)。
+    // 一時停止中に切れたときは、次にマイクを押したときに始める
+    if (wasListening && restarts < 3) {
+      restarts += 1;
+      vlog(`自動で始め直す(${restarts}回目)`);
+      start(target, { auto: true });
+      return;
     }
+    notify();
   };
   r.onstart = () => vlog(`onstart ${Date.now() - session.startedAt}ms`);
   r.onaudiostart = () => vlog(`audiostart ${Date.now() - session.startedAt}ms`);
-  r.onspeechstart = () => vlog('speechstart');
+  // 声を拾ったのに5秒たっても文字が返らないときは、認識が詰まったとみて始め直す(PCのChromeで起きた。2026-10-16)。
+  // iPhoneの「止めた後1分使えない」状態では声を拾った合図そのものが来ないので、これは働かない
+  let noTextTimer = null;
+  let lastResultAt = 0;
+  r.onspeechstart = () => {
+    vlog('speechstart');
+    if (paused) return;
+    const since = Date.now();
+    clearTimeout(noTextTimer);
+    noTextTimer = setTimeout(() => {
+      if (rec !== r || paused || lastResultAt > since) return;
+      vlog('声を拾って5秒文字なし: 始め直す');
+      try { r.abort(); } catch { /* 既に止まっている */ } // onend で始め直す
+    }, 5000);
+  };
   r.onaudioend = () => vlog('audioend');
   rec = r;
   paused = false;
