@@ -75,12 +75,15 @@ let painting = false;
 function paint() {
   if (painting) return;
   painting = true;
-  requestAnimationFrame(() => {
-    painting = false;
-    if (!rec || paused || !target) return;
-    target.value = baseText + commands(tidy(lastFull.slice(consumed)));
-    target.dispatchEvent(new Event('input', { bubbles: true }));
-  });
+  requestAnimationFrame(() => { painting = false; flush(); });
+}
+// まだ書き込んでいない途中経過を、今すぐ入力欄に書き込む(一時停止・改行の前に呼ぶ)
+function flush() {
+  if (!rec || paused || !target) return;
+  const v = baseText + commands(tidy(lastFull.slice(consumed)));
+  if (target.value === v) return;
+  target.value = v;
+  target.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 // 一時停止中から、指定の入力欄へ文字を入れる状態に戻す
@@ -178,6 +181,7 @@ export function start(textarea, { auto = false } = {}) {
 // 保存・画面の切り替え・マイクのボタンで呼ぶ。音声認識は止めずに一時停止にする
 export function stop() {
   if (rec && !paused) {
+    flush();
     vlog('一時停止');
     setPaused(true);
   }
@@ -198,6 +202,7 @@ export function hardStop() {
 // 改行ボタン: 音声入力中でも止めずに、今の位置で改行する
 export function newline(textarea) {
   if (rec && !paused && target === textarea) {
+    flush();
     baseText = textarea.value.replace(/[ \t]+$/, '') + '\n';
     consumed = lastFull.length;
     textarea.value = baseText;
