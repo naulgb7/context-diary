@@ -129,3 +129,10 @@ mark { background: var(--mark); color: inherit; }
 
 /* APIキー欄: パスワード欄(type=password)を使わずに伏せ字にする(パスワード欄はiPhoneの音声入力を止めることがあるため) */
 .masked { -webkit-text-security: disc; }
+
+/* 同期するかの確認 */
+.ask { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.askbox { background: var(--bg); color: var(--fg); border-radius: 12px; padding: 18px 16px; width: 100%; max-width: 360px; }
+.asktitle { font-weight: 700; margin: 0 0 6px; }
+.askbtns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+.askbtns button { min-width: 90px; }

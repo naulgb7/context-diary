@@ -77,6 +77,15 @@
 
 <div id="toast" class="toast" hidden></div>
 
+<!-- Googleの接続が切れているときに、開いたところで同期するか尋ねる -->
+<div id="syncAsk" class="ask" hidden>
+  <div class="askbox">
+    <p class="asktitle">Googleに接続して同期しますか?</p>
+    <p class="note" id="syncAskNote"></p>
+    <div class="askbtns"><button id="syncAskYes" type="button">はい</button><button id="syncAskNo" class="sub" type="button">いいえ</button></div>
+  </div>
+</div>
+
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script type="module" src="js/app.js"></script>
 </body>

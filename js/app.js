@@ -2,7 +2,7 @@
 import { $, $$ } from './util.js';
 import { loadSettings } from './settings.js';
 import { isSignedIn, signIn, onAuthChange } from './auth.js';
-import { requestSync, onSyncState, refreshPending } from './sync.js';
+import { requestSync, onSyncState, refreshPending, pendingCount } from './sync.js';
 import * as voice from './voice.js';
 import { ICONS, toast, show, back, viewName } from './ui.js';
 import { initWrite, refresh as refreshWrite } from './views/write.js';
@@ -18,6 +18,9 @@ function setupIcons() {
     if (!voice.available) b.closest('.micwrap').hidden = true;
   }
 }
+
+// 画面にキーボードが出ているか(見えている高さが画面の高さより大きく縮んでいるか)。PCでは出ない
+const keyboardShown = () => !!window.visualViewport && window.visualViewport.height < window.innerHeight - 120;
 
 // 入力欄の中でのカーソルの縦位置(欄の先頭からの距離)を、同じ書式の見えない写しで測る
 function caretY(ta) {
@@ -55,6 +58,7 @@ function setupVoice() {
     ta.addEventListener('compositionend', () => { composing = false; });
     const fitKeyboard = () => {
       if (document.activeElement !== ta || composing) return;
+      if (!keyboardShown()) return grow(); // PCなど画面にキーボードが出ない端末では、伸びる作りのまま
       const headerH = $('.top').offsetHeight;
       const vv = window.visualViewport;
       const visible = vv ? vv.height : window.innerHeight;
@@ -74,15 +78,21 @@ function setupVoice() {
       const { selectionStart: s, selectionEnd: e } = ta;
       requestAnimationFrame(() => { if (document.activeElement === ta) ta.setSelectionRange(s, e); });
     };
-    const update = () => {
-      hint.hidden = !ta.value.endsWith('\n');
-      // キーボードで入力している間は、欄の大きさもカーソルも触らない(日本語の変換中に触ると変換が壊れる)。
-      // 欄を合わせるのは、キーボードが出たときと大きさが変わったときだけ
-      if (document.activeElement === ta) return;
+    const grow = () => {
       document.body.classList.remove('kb');
       ta.style.overflowY = '';
       ta.style.height = 'auto';
       ta.style.height = `${Math.max(140, ta.scrollHeight + 2)}px`;
+    };
+    const update = () => {
+      hint.hidden = !ta.value.endsWith('\n');
+      // キーボードで入力している間は、欄の大きさもカーソルも触らない(日本語の変換中に触ると変換が壊れる)。
+      // 欄を合わせるのは、キーボードが出たときと大きさが変わったときだけ
+      if (document.activeElement === ta) {
+        if (!keyboardShown()) grow(); // PCで手入力しているときは、文の量に合わせて伸ばすだけ(画面は送らない)
+        return;
+      }
+      grow();
       if (!ta.closest('.view').hidden) {
         const limit = window.innerHeight - $('.tabs').offsetHeight - 8;
         const bottom = ops.getBoundingClientRect().bottom;
@@ -130,6 +140,25 @@ function setupTabs() {
   }
 }
 
+// Googleの接続(1時間で切れる)が切れているときは、開いたところで同期するか尋ねる。
+// ログイン画面は利用者が押した操作の中からしか開けないので、自動ではつながず「はい」を押してもらう
+let askedThisTime = false;
+async function maybeAskSync() {
+  if (isSignedIn() || askedThisTime || !navigator.onLine || !window.google?.accounts?.oauth2) return;
+  askedThisTime = true;
+  const n = await pendingCount();
+  $('#syncAskNote').textContent = n ? `未送信が${n}件あります。` : 'ほかの端末で書いた分も取り込みます。';
+  $('#syncAsk').hidden = false;
+}
+
+function setupSyncAsk() {
+  $('#syncAskYes').addEventListener('click', async () => {
+    $('#syncAsk').hidden = true;
+    try { await signIn(); requestSync(); } catch (e) { toast(e.message, 6000); }
+  });
+  $('#syncAskNo').addEventListener('click', () => { $('#syncAsk').hidden = true; });
+}
+
 function setupSyncButton() {
   const btn = $('#syncBtn');
   onSyncState((s) => {
@@ -165,6 +194,7 @@ async function main() {
   setupVoice();
   setupTabs();
   setupSyncButton();
+  setupSyncAsk();
   initWrite();
   initBrowse();
   initSettings();
@@ -176,12 +206,16 @@ async function main() {
     voice.vlog(`表示 ${document.visibilityState}`);
     // 一時停止方式で動かし続けている音声認識は、アプリが裏に回ったら本当に止めてマイクを手放す
     if (document.visibilityState === 'hidden') voice.hardStop();
+    if (document.visibilityState === 'hidden') askedThisTime = false; // 次に開いたときにまた尋ねる
+    else setTimeout(maybeAskSync, 800);
     if (document.visibilityState === 'visible') {
       requestSync();
       if (viewName() === 'write') refreshWrite();
     }
   });
   requestSync().then(() => { if (viewName() === 'write') refreshWrite(); });
+  // Googleのログイン部品の読み込みを待ってから尋ねる
+  setTimeout(maybeAskSync, 1500);
 
   if (location.hash) history.replaceState(null, '', location.pathname); // 旧版の通知の #summary 等を消す
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker', e));
