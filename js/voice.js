@@ -191,6 +191,7 @@ export function stop() {
 // アプリが裏に回ったときに本当に止める(マイクを手放す)
 export function hardStop() {
   if (!rec) return;
+  flush();
   vlog('完全に停止(アプリが裏に回った)');
   const r = rec;
   rec = null;
