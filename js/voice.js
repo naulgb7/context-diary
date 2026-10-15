@@ -70,6 +70,19 @@ function bindTyping(textarea) {
   });
 }
 
+// 認識の途中経過は1秒に何度も届くので、入力欄への書き込みと高さの計算は画面の描き替え1回につき1度にまとめる(遅れを減らす)
+let painting = false;
+function paint() {
+  if (painting) return;
+  painting = true;
+  requestAnimationFrame(() => {
+    painting = false;
+    if (!rec || paused || !target) return;
+    target.value = baseText + commands(tidy(lastFull.slice(consumed)));
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 // 一時停止中から、指定の入力欄へ文字を入れる状態に戻す
 function resume(textarea) {
   target = textarea;
@@ -107,8 +120,7 @@ export function start(textarea, { auto = false } = {}) {
     restarts = 0;
     if (!session.gotResult) vlog('result(最初の文字)');
     session.gotResult = true;
-    target.value = baseText + commands(tidy(full.slice(consumed)));
-    target.dispatchEvent(new Event('input', { bubbles: true }));
+    paint();
   };
   r.onerror = (ev) => {
     vlog(`error ${ev.error}`);
