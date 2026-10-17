@@ -5,7 +5,7 @@ import { isSignedIn, signIn, onAuthChange } from './auth.js';
 import { requestSync, onSyncState, refreshPending, pendingCount } from './sync.js';
 import * as voice from './voice.js';
 import { ICONS, toast, show, back, viewName } from './ui.js';
-import { initWrite, refresh as refreshWrite } from './views/write.js';
+import { initWrite, refresh as refreshWrite, persistDraft } from './views/write.js';
 import { initBrowse } from './views/browse.js';
 import { initSettings } from './views/settings.js';
 
@@ -206,6 +206,7 @@ async function main() {
     voice.vlog(`表示 ${document.visibilityState}`);
     // 一時停止方式で動かし続けている音声認識は、アプリが裏に回ったら本当に止めてマイクを手放す
     if (document.visibilityState === 'hidden') voice.hardStop();
+    if (document.visibilityState === 'hidden') persistDraft(); // 書きかけをすぐ控える
     if (document.visibilityState === 'hidden') askedThisTime = false; // 次に開いたときにまた尋ねる
     else setTimeout(maybeAskSync, 800);
     if (document.visibilityState === 'visible') {

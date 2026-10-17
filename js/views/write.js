@@ -1,10 +1,10 @@
 // 記入画面: 話すきっかけ(問い)・入力欄・マイク・保存ボタン・今日の出来事
 // 2026-10-11 オーナー決定: 主役は「今日の出来事」。保存するたびに時刻付きで追記し、画面では時刻順に続けて見せる。
 // 問いは答えるものではなく、話すきっかけのヒントとして出すだけ(日記には残さない)。1日のまとめはやめた
-import { $, esc, diaryDay, newId, dateFromId, hm } from '../util.js';
+import { $, esc, diaryDay, newId, dateFromId, hm, debounce } from '../util.js';
 import * as store from '../store.js';
 import * as voice from '../voice.js';
-import { settings } from '../settings.js';
+import { settings, lsGet, lsSet } from '../settings.js';
 import { currentQuestion, nextQuestion } from '../questions.js';
 import { requestSync, refreshPending } from '../sync.js';
 import { toast, onShow } from '../ui.js';
@@ -14,7 +14,33 @@ let editingId = null;
 
 const today = () => diaryDay(new Date(), settings().dayBoundary);
 
+// 書きかけ: 保存ボタンを押さずに閉じても、次に開いたとき入力欄に戻す(2026-10-17 オーナー決定)。日記には入れない
+const DRAFT_KEY = 'writeDraft';
+export function persistDraft() {
+  const text = $('#writeText').value;
+  if (text.trim()) lsSet(DRAFT_KEY, JSON.stringify({ text, editingId, day: today() }));
+  else lsSet(DRAFT_KEY, null);
+}
+const saveDraftSoon = debounce(persistDraft, 500);
+const clearDraft = () => lsSet(DRAFT_KEY, null);
+let draftChecked = false;
+async function restoreDraft() {
+  if (draftChecked) return;
+  draftChecked = true;
+  const raw = lsGet(DRAFT_KEY);
+  if (!raw || $('#writeText').value) return;
+  try {
+    const d = JSON.parse(raw);
+    if (!d.text) return;
+    if (d.editingId && d.day === today()) await startEdit(d.editingId);
+    $('#writeText').value = d.text;
+    $('#writeText').updateHint?.();
+    toast('前回の書きかけを入力欄に戻しました');
+  } catch { /* 読めなければ戻さない */ }
+}
+
 export function initWrite() {
+  $('#writeText').addEventListener('input', saveDraftSoon);
   $('#writeSave').addEventListener('click', save);
   $('#writeCancel').addEventListener('click', cancelEdit);
   $('#qnext').addEventListener('click', async () => { question = await nextQuestion(); renderQuestion(); });
@@ -26,6 +52,7 @@ export async function refresh() {
   if (question && question.day !== today()) question = await nextQuestion();
   renderQuestion();
   await renderToday();
+  await restoreDraft();
 }
 
 function renderQuestion() {
@@ -88,6 +115,7 @@ async function save() {
     }
     ta.value = '';
     ta.updateHint?.();
+    clearDraft();
     renderQuestion();
     await renderToday();
     await refreshPending();
@@ -113,6 +141,7 @@ async function startEdit(id) {
 async function cancelEdit() {
   await voice.stop();
   editingId = null;
+  clearDraft();
   $('#writeText').value = '';
   $('#writeText').updateHint?.();
   $('#writeCancel').hidden = true;

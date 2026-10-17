@@ -41,6 +41,7 @@ export const tidy = (s) => s.replace(/(?<=[^\x00-\x7F]) +| +(?=[^\x00-\x7F])/g, 
 const commands = (s) => s.replace(/\s*(改行|かいぎょう|開業)[。、]?\s*/g, '\n');
 
 let current = null; // 今の回の記録用(文字が出たか・始めた時刻)
+const WAIT_HINT = 'iPhoneがまだ声を渡していないようです。キーボードのマイクや音声入力を使った直後は、1分ほどこうなることがあります。待てばこのまま入るようになります。急ぐときは入力欄を押してキーボードのマイクを使ってください';
 const NO_TEXT = 'マイクに声が届いていないようです。少し待ってからもう一度押すか、入力欄を押してキーボードのマイクを使ってください';
 
 // iPhoneは話した内容を1つの結果に足し続けて返すことが多いので、結果の数ではなく文字数で区切る。
@@ -127,7 +128,8 @@ export function start(textarea, { auto = false } = {}) {
   };
   r.onerror = (ev) => {
     vlog(`error ${ev.error}`);
-    if (ev.error === 'aborted' || paused) return;
+    // audio-capture は「声が届かない形」の終わりに来る。この後 onend で自動で始め直すので、知らせない
+    if (ev.error === 'aborted' || ev.error === 'audio-capture' || paused) return;
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
   };
   r.onend = () => {
@@ -148,12 +150,25 @@ export function start(textarea, { auto = false } = {}) {
     notify();
   };
   r.onstart = () => vlog(`onstart ${Date.now() - session.startedAt}ms`);
-  r.onaudiostart = () => vlog(`audiostart ${Date.now() - session.startedAt}ms`);
+  // iPhoneでは、キーボードのマイクや前の音声入力を使った直後(約1分)は、マイクが開いた合図がすぐ来るのに声が届かない。
+  // その形のときは止めずに(待てば使えるようになる)、キーボードのマイクを使えることを1回だけ知らせる
+  let speechSeen = false;
+  r.onaudiostart = () => {
+    const ms = Date.now() - session.startedAt;
+    vlog(`audiostart ${ms}ms`);
+    if (ms >= 100) return;
+    setTimeout(() => {
+      if (speechSeen || session.gotResult || rec !== r || paused) return;
+      vlog('声が届かない形: 知らせる');
+      errorHandler(WAIT_HINT);
+    }, 4000);
+  };
   // 声を拾ったのに5秒たっても文字が返らないときは、認識が詰まったとみて始め直す(PCのChromeで起きた。2026-10-16)。
   // iPhoneの「止めた後1分使えない」状態では声を拾った合図そのものが来ないので、これは働かない
   let noTextTimer = null;
   let lastResultAt = 0;
   r.onspeechstart = () => {
+    speechSeen = true;
     vlog('speechstart');
     if (paused) return;
     const since = Date.now();
