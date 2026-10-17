@@ -3,13 +3,13 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 export const available = !!SR;
 
-// 音声入力の調査用の記録(直近80件)。設定画面で見て、コピーしてもらう
+// 音声入力の調査用の記録(直近300件)。設定画面で見て、コピーしてもらう
 export function vlog(msg) {
   try {
     const list = JSON.parse(localStorage.getItem('voiceLog') || '[]');
     const d = new Date();
     list.push(`${d.toLocaleTimeString('ja-JP')}.${String(d.getMilliseconds()).padStart(3, '0')} ${msg}`);
-    localStorage.setItem('voiceLog', JSON.stringify(list.slice(-80)));
+    localStorage.setItem('voiceLog', JSON.stringify(list.slice(-300)));
   } catch { /* 記録できなくても動作は続ける */ }
 }
 export const voiceLog = () => { try { return JSON.parse(localStorage.getItem('voiceLog') || '[]'); } catch { return []; } };
@@ -54,6 +54,8 @@ let lastFull = '';
 // そこで、いったん始めた音声認識は止めずに動かし続け、マイクのボタンでは「文字を入れる/入れない」だけを切り替える。
 // 本当に止めるのは、アプリが裏に回ったとき(hardStop)と、iPhoneが自分で切ったときだけ
 let paused = false;
+let deadRetries = 0; // 声が届かない形で始め直した回数(文字が出たら0に戻す)
+let hintShownAt = 0;
 let lastTypedAt = 0; // 入力欄にキーボード(キーボードのマイク含む)で入力した時刻
 let lastCaptureLostAt = 0; // マイクを取られて音声認識が終わった(audio-capture)時刻
 export const noteTyping = () => { lastTypedAt = Date.now(); };
@@ -125,6 +127,7 @@ export function start(textarea, { auto = false } = {}) {
     lastResultAt = Date.now();
     if (paused || rec !== r) return; // 一時停止中は捨てる(再開時に consumed で読み飛ばす)
     restarts = 0;
+    deadRetries = 0;
     if (!session.gotResult) vlog('result(最初の文字)');
     session.gotResult = true;
     paint();
@@ -145,6 +148,19 @@ export function start(textarea, { auto = false } = {}) {
     paused = false;
     // 文字を入れている最中にブラウザが自分で音声認識を切ったときは、すぐ始め直す(PCのChromeは1〜2分で切る)。
     // 一時停止中に切れたときは、次にマイクを押したときに始める
+    // 声が届かない形で止めたときは、1秒おいて始め直す(iPhoneがマイクを返したら、その回から入る)。最長およそ1分半まで
+    if (wasListening && session.deadRetry && deadRetries < 15) {
+      deadRetries += 1;
+      vlog(`声が届かないので始め直す(${deadRetries}回目)`);
+      rec = r; // 始め直すまでの1秒も、マイクのボタンは赤いままにする
+      setTimeout(() => {
+        if (rec !== r) return; // その間に完全停止された
+        rec = null;
+        if (paused) { paused = false; notify(); return; } // その間に一時停止された: 次に押したときに始める
+        start(target, { auto: true });
+      }, 1000);
+      return;
+    }
     if (wasListening && restarts < 3) {
       restarts += 1;
       vlog(`自動で始め直す(${restarts}回目)`);
@@ -167,8 +183,14 @@ export function start(textarea, { auto = false } = {}) {
     if (ms >= 100 && !recent) return;
     setTimeout(() => {
       if (speechSeen || session.gotResult || rec !== r || paused) return;
-      vlog('声が届かない形: 知らせる');
-      errorHandler(WAIT_HINT);
+      // iPhoneが自分で時間切れにする(15〜40秒)のを待たず、4秒で止めて始め直す。iPhoneがマイクを返した時点で入るようになる
+      if (Date.now() - hintShownAt > 60000) {
+        hintShownAt = Date.now();
+        vlog('声が届かない形: 知らせる');
+        errorHandler(WAIT_HINT);
+      }
+      session.deadRetry = true;
+      try { r.abort(); } catch { /* 既に止まっている */ }
     }, 4000);
   };
   // 声を拾ったのに5秒たっても文字が返らないときは、認識が詰まったとみて始め直す(PCのChromeで起きた。2026-10-16)。
