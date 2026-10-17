@@ -49,6 +49,7 @@ function setupVoice() {
   // 音声入力や改行ボタンで文が増えたときは、文の最後とマイク・記入ボタンが見える位置まで画面を送る。
   // 末尾の改行は見えないので、改行したことを入力欄の下に表示する
   for (const ta of [$('#writeText')]) {
+    ta.addEventListener('input', (ev) => { if (ev.isTrusted) voice.noteTyping(); }); // キーボードで入力した時刻を覚える
     const hint = $(`.nlhint[data-hint-for="${ta.id}"]`);
     const ops = ta.parentElement.querySelector('.ops');
     // キーボードで直している間は、入力欄をキーボードの上に収まる高さにして、欄の中でスクロールさせる。

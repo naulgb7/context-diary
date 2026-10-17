@@ -54,6 +54,9 @@ let lastFull = '';
 // そこで、いったん始めた音声認識は止めずに動かし続け、マイクのボタンでは「文字を入れる/入れない」だけを切り替える。
 // 本当に止めるのは、アプリが裏に回ったとき(hardStop)と、iPhoneが自分で切ったときだけ
 let paused = false;
+let lastTypedAt = 0; // 入力欄にキーボード(キーボードのマイク含む)で入力した時刻
+let lastCaptureLostAt = 0; // マイクを取られて音声認識が終わった(audio-capture)時刻
+export const noteTyping = () => { lastTypedAt = Date.now(); };
 let restarts = 0; // 自動で始め直した回数(文字が出たら0に戻す)
 const setPaused = (v) => { paused = v; notify(); };
 export const isListening = () => !!rec && !paused;
@@ -128,6 +131,7 @@ export function start(textarea, { auto = false } = {}) {
   };
   r.onerror = (ev) => {
     vlog(`error ${ev.error}`);
+    if (ev.error === 'audio-capture') lastCaptureLostAt = Date.now();
     // audio-capture は「声が届かない形」の終わりに来る。この後 onend で自動で始め直すので、知らせない
     if (ev.error === 'aborted' || ev.error === 'audio-capture' || paused) return;
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
@@ -156,7 +160,11 @@ export function start(textarea, { auto = false } = {}) {
   r.onaudiostart = () => {
     const ms = Date.now() - session.startedAt;
     vlog(`audiostart ${ms}ms`);
-    if (ms >= 100) return;
+    // 2026-10-17 の記録: キーボードで入力(キーボードのマイク含む)した直後や、マイクを取られて終わった(audio-capture)直後は、
+    // 合図の速さに関係なく声が届かない。その直後(1分以内)に始めて、4秒たっても声を拾わないときだけ知らせる
+    // (それ以外で知らせると、マイクを押して黙って考えているだけのときにも出てしまう)
+    const recent = Date.now() - Math.max(lastTypedAt, lastCaptureLostAt) < 60000;
+    if (ms >= 100 && !recent) return;
     setTimeout(() => {
       if (speechSeen || session.gotResult || rec !== r || paused) return;
       vlog('声が届かない形: 知らせる');
