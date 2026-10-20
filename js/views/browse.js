@@ -49,7 +49,7 @@ function renderCalendar() {
   for (let d = 1; d <= days; d++) {
     const key = ymd(new Date(y, m, d));
     const cls = [daysWithContent.has(key) ? 'has' : '', key === today ? 'today' : '', key === selected ? 'sel' : ''].join(' ');
-    html += `<button type="button" class="${cls}" data-day="${key}">${d}</button>`;
+    html += `<button type="button" class="${cls}" data-day="${esc(key)}">${d}</button>`;
   }
   const grid = $('#calGrid');
   grid.innerHTML = html;
@@ -125,7 +125,7 @@ async function search() {
     return;
   }
   box.innerHTML = `<div class="empty">${hits.length}件</div>` + hits.slice(0, 200).map((h) =>
-    `<button type="button" class="hit" data-day="${h.day}"><div class="meta">${esc(dayLabel(h.day))} ${esc(h.label)}</div><div>${h.html}</div></button>`
+    `<button type="button" class="hit" data-day="${esc(h.day)}"><div class="meta">${esc(dayLabel(h.day))} ${esc(h.label)}</div><div>${h.html}</div></button>`
   ).join('');
   for (const b of box.querySelectorAll('.hit')) {
     b.addEventListener('click', async () => {

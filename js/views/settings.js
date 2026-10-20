@@ -67,7 +67,7 @@ function render() {
       <p class="note">iPhoneで音声認識の確認を一度「許可しない」にした場合は、「設定 → プライバシーとセキュリティ → 音声認識」で許可し、このアプリを閉じてから開き直してください。</p>
     </div>
 
-    <p class="note" style="margin:18px 0 0">アプリの版: ${APP_VERSION}<br>試作(動作確認用)の画面: <a href="prototype.html">prototype.html</a></p>
+    <p class="note" style="margin:18px 0 0">アプリの版: ${APP_VERSION}</p>
   `;
   renderAccount();
   renderPush();

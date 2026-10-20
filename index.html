@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="theme-color" content="#2f6f8f">
+<!-- 読み込めるものを、このアプリ自身とGoogleのログイン・ドライブ・Geminiだけに絞る(万一の書き換え・混入への備え) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://generativelanguage.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'none'">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
