@@ -50,6 +50,9 @@ function setupVoice() {
   // 末尾の改行は見えないので、改行したことを入力欄の下に表示する
   for (const ta of [$('#writeText')]) {
     ta.addEventListener('input', (ev) => { if (ev.isTrusted) voice.noteTyping(); }); // キーボードで入力した時刻を覚える
+    // 入力欄をタップしたら(キーボードを使う)、アプリの音声入力を完全に止めて音声認識を手放す。
+    // つかんだままだとキーボードのマイクが使えない(2026-10-22 オーナー決定)
+    ta.addEventListener('focus', () => { if (voice.isListening() || voice.hasSession()) voice.hardStop('入力欄をタップした'); });
     const hint = $(`.nlhint[data-hint-for="${ta.id}"]`);
     const ops = ta.parentElement.querySelector('.ops');
     // キーボードで直している間は、入力欄をキーボードの上に収まる高さにして、欄の中でスクロールさせる。

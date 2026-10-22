@@ -41,7 +41,7 @@ export const tidy = (s) => s.replace(/(?<=[^\x00-\x7F]) +| +(?=[^\x00-\x7F])/g, 
 const commands = (s) => s.replace(/\s*(改行|かいぎょう|開業)[。、]?\s*/g, '\n');
 
 let current = null; // 今の回の記録用(文字が出たか・始めた時刻)
-const WAIT_HINT = 'iPhoneがまだ音声入力を掴んでいるようです。キーボードのマイクや音声入力を使った直後は、1分ほどこうなることがあります。待てばこのまま入るようになります。急ぐときは入力欄を押してキーボードのマイクを使ってください';
+const WAIT_HINT = 'iPhoneがまだ音声入力を掴んでいるようです。音声入力をいったん止めました。入力欄を押してキーボードのマイクを使うか、少し待ってからもう一度マイクを押してください';
 const NO_TEXT = 'マイクに声が届いていないようです。少し待ってからもう一度押すか、入力欄を押してキーボードのマイクを使ってください';
 
 // iPhoneは話した内容を1つの結果に足し続けて返すことが多いので、結果の数ではなく文字数で区切る。
@@ -54,14 +54,13 @@ let lastFull = '';
 // そこで、いったん始めた音声認識は止めずに動かし続け、マイクのボタンでは「文字を入れる/入れない」だけを切り替える。
 // 本当に止めるのは、アプリが裏に回ったとき(hardStop)と、iPhoneが自分で切ったときだけ
 let paused = false;
-let deadRetries = 0; // 声が届かない形で始め直した回数(文字が出たら0に戻す)
-let hintShownAt = 0;
 let lastTypedAt = 0; // 入力欄にキーボード(キーボードのマイク含む)で入力した時刻
 let lastCaptureLostAt = 0; // マイクを取られて音声認識が終わった(audio-capture)時刻
 export const noteTyping = () => { lastTypedAt = Date.now(); };
 let restarts = 0; // 自動で始め直した回数(文字が出たら0に戻す)
 const setPaused = (v) => { paused = v; notify(); };
 export const isListening = () => !!rec && !paused;
+export const hasSession = () => !!rec; // 一時停止中も含め、音声認識を動かしているか
 
 const typedBound = new WeakSet();
 // 音声入力中に手で入力・修正したら(キーボードでの入力は isTrusted が true)、それを土台にして続きを足す
@@ -127,14 +126,13 @@ export function start(textarea, { auto = false } = {}) {
     lastResultAt = Date.now();
     if (paused || rec !== r) return; // 一時停止中は捨てる(再開時に consumed で読み飛ばす)
     restarts = 0;
-    deadRetries = 0;
     if (!session.gotResult) vlog('result(最初の文字)');
     session.gotResult = true;
     paint();
   };
   r.onerror = (ev) => {
     vlog(`error ${ev.error}`);
-    if (ev.error === 'audio-capture') lastCaptureLostAt = Date.now();
+    if (ev.error === 'audio-capture') { lastCaptureLostAt = Date.now(); session.captureLost = true; }
     // audio-capture は「声が届かない形」の終わりに来る。この後 onend で自動で始め直すので、知らせない
     if (ev.error === 'aborted' || ev.error === 'audio-capture' || paused) return;
     errorHandler(ERRORS[ev.error] || `音声認識のエラー(${ev.error})`);
@@ -148,20 +146,8 @@ export function start(textarea, { auto = false } = {}) {
     paused = false;
     // 文字を入れている最中にブラウザが自分で音声認識を切ったときは、すぐ始め直す(PCのChromeは1〜2分で切る)。
     // 一時停止中に切れたときは、次にマイクを押したときに始める
-    // 声が届かない形で止めたときは、1秒おいて始め直す(iPhoneがマイクを返したら、その回から入る)。最長およそ1分半まで
-    if (wasListening && session.deadRetry && deadRetries < 15) {
-      deadRetries += 1;
-      vlog(`声が届かないので始め直す(${deadRetries}回目)`);
-      rec = r; // 始め直すまでの1秒も、マイクのボタンは赤いままにする
-      setTimeout(() => {
-        if (rec !== r) return; // その間に完全停止された
-        rec = null;
-        if (paused) { paused = false; notify(); return; } // その間に一時停止された: 次に押したときに始める
-        start(target, { auto: true });
-      }, 1000);
-      return;
-    }
-    if (wasListening && restarts < 3) {
+    // マイクを取られて終わった(audio-capture)ときは始め直さない。始め直すとキーボードのマイクとの取り合いになる(2026-10-22 の記録)
+    if (wasListening && !session.captureLost && restarts < 3) {
       restarts += 1;
       vlog(`自動で始め直す(${restarts}回目)`);
       start(target, { auto: true });
@@ -183,14 +169,11 @@ export function start(textarea, { auto = false } = {}) {
     if (ms >= 100 && !recent) return;
     setTimeout(() => {
       if (speechSeen || session.gotResult || rec !== r || paused) return;
-      // iPhoneが自分で時間切れにする(15〜40秒)のを待たず、4秒で止めて始め直す。iPhoneがマイクを返した時点で入るようになる
-      if (Date.now() - hintShownAt > 60000) {
-        hintShownAt = Date.now();
-        vlog('声が届かない形: 知らせる');
-        errorHandler(WAIT_HINT);
-      }
-      session.deadRetry = true;
-      try { r.abort(); } catch { /* 既に止まっている */ }
+      // 始め直しを繰り返しても戻らず、その間キーボードのマイクまで使えなくなった(2026-10-22 の記録)。
+      // 知らせて完全に止め、音声認識を手放す。キーボードのマイクはすぐ使え、アプリのマイクは少し待てば戻る
+      vlog('声が届かない形: 知らせて止める');
+      errorHandler(WAIT_HINT);
+      hardStop('声が届かない');
     }, 4000);
   };
   // 声を拾ったのに5秒たっても文字が返らないときは、認識が詰まったとみて始め直す(PCのChromeで起きた。2026-10-16)。
@@ -234,10 +217,10 @@ export function stop() {
 }
 
 // アプリが裏に回ったときに本当に止める(マイクを手放す)
-export function hardStop() {
+export function hardStop(reason = 'アプリが裏に回った') {
   if (!rec) return;
   flush();
-  vlog('完全に停止(アプリが裏に回った)');
+  vlog(`完全に停止(${reason})`);
   const r = rec;
   rec = null;
   paused = false;
