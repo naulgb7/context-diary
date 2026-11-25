@@ -6,7 +6,7 @@ import * as store from '../store.js';
 import * as voice from '../voice.js';
 import { settings, lsGet, lsSet } from '../settings.js';
 import { currentQuestion, nextQuestion } from '../questions.js';
-import { requestSync, refreshPending } from '../sync.js';
+import { requestSync, refreshPending, onDataChanged } from '../sync.js';
 import { toast, onShow } from '../ui.js';
 
 let question = null; // 今出しているヒント
@@ -45,6 +45,8 @@ export function initWrite() {
   $('#writeCancel').addEventListener('click', cancelEdit);
   $('#qnext').addEventListener('click', async () => { question = await nextQuestion(); renderQuestion(); });
   onShow((name) => { if (name === 'write') refresh(); });
+  // ほかの端末の分を取り込んだら、開いたままの記入画面にもすぐ出す(入力欄の書きかけには触らない)
+  onDataChanged(() => { if (!$('#view-write').hidden) renderToday(); });
 }
 
 export async function refresh() {

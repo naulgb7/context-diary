@@ -10,8 +10,23 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 async function call(url, options = {}, as = 'json') {
   const token = getToken();
   if (!token) throw new AuthError('Googleに接続していません');
+  // 応答が来ないまま待ち続けると「同期中」から戻らず、以後の同期も始まらないので、30秒で打ち切る
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    return await request(url, { ...options, signal: ctrl.signal }, token, as);
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('ドライブの応答がありません。電波を確かめて、もう一度押してください');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function request(url, options, token, as) {
   const res = await fetch(url, {
     ...options,
+    cache: 'no-store', // ブラウザに残った古い内容を使わない
     headers: { Authorization: `Bearer ${token}`, ...(options.headers || {}) },
   });
   if (res.status === 401) {
@@ -19,9 +34,9 @@ async function call(url, options = {}, as = 'json') {
     throw new AuthError('Googleの接続が切れました');
   }
   if (!res.ok) throw new Error(`ドライブ ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  if (as === 'text') return res.text();
+  if (as === 'text') return await res.text();
   if (res.status === 204) return null;
-  return res.json();
+  return await res.json();
 }
 
 const q = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");

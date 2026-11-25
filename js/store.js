@@ -50,11 +50,13 @@ export const allEntries = () => tx('entries', 'readonly', (s) => wrap(s.getAll()
 export const entriesOfDay = (day) => tx('entries', 'readonly', (s) => wrap(s.index('day').getAll(day)));
 
 // ある日の記入を、ドライブから読んだ内容で置き換える
-export async function replaceDay(day, entries) {
+// keepDirty: 読んでいる間に端末で書かれた未送信の記入は、消さずに残す
+export async function replaceDay(day, entries, { keepDirty = false } = {}) {
   return tx('entries', 'readwrite', async (s) => {
     const old = await wrap(s.index('day').getAll(day));
-    for (const e of old) s.delete(e.id);
-    for (const e of entries) s.put(e);
+    const kept = new Set(keepDirty ? old.filter((e) => e.dirty).map((e) => e.id) : []);
+    for (const e of old) if (!kept.has(e.id)) s.delete(e.id);
+    for (const e of entries) if (!kept.has(e.id)) s.put(e);
   });
 }
 

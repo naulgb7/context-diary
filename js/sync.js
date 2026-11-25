@@ -213,12 +213,13 @@ async function pullChangedDays() {
       const inFolder = await drive.findByName(`${day}.md`, yf);
       if (!inFolder.length) continue;
       const remote = await readRemoteDay(day, inFolder);
-      await store.replaceDay(day, [...remote.entries.values()].map((e) => ({ ...e, day, dirty: false })));
+      await store.replaceDay(day, [...remote.entries.values()].map((e) => ({ ...e, day, dirty: false })), { keepDirty: true });
       const before = await store.getSummary(day);
       await saveSummaryFromRemote(day, remote.summary, before);
     }
     changed = true;
   }
+  if ((await dirtyDays()).length) again = true; // 取り込みの間に書かれた分を、続けて送る
   await store.kvSet('lastPull', startedAt);
   if (changed) dataChanged();
 }
